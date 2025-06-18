@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Plus, Calendar, User, Filter, Search, ChevronDown, ChevronRight, Eye, EyeOff } from 'lucide-react';
+import { TaskDetail } from '@/components/TaskDetail';
 
 export const MyTasks = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,6 +21,8 @@ export const MyTasks = () => {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskProject, setNewTaskProject] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState('medium');
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
   
   // Collapsible sections state
   const [overdueOpen, setOverdueOpen] = useState(true);
@@ -29,7 +31,7 @@ export const MyTasks = () => {
   const [completedOpen, setCompletedOpen] = useState(false);
 
   // Mock data - tasks assigned to current user (JD)
-  const myTasks = [
+  const [myTasks, setMyTasks] = useState([
     {
       id: '1',
       title: 'Design Instagram post templates',
@@ -39,7 +41,8 @@ export const MyTasks = () => {
       priority: 'high',
       assignee: 'JD',
       dueDate: '2024-07-05', // Overdue
-      completed: false
+      completed: false,
+      notes: 'Need to follow brand guidelines and create 5 different templates.'
     },
     {
       id: '2',
@@ -85,7 +88,7 @@ export const MyTasks = () => {
       dueDate: '2024-07-04', // Overdue
       completed: false
     }
-  ];
+  ]);
 
   const workspaces = [
     'TechCorp Inc.',
@@ -153,9 +156,30 @@ export const MyTasks = () => {
     setIsNewTaskOpen(false);
   };
 
-  const TaskItem = ({ task }: { task: typeof myTasks[0] }) => (
-    <div className="flex items-center space-x-4 p-3 rounded-lg border hover:bg-gray-50 transition-colors">
-      <Checkbox checked={task.completed} className="mt-1" />
+  const handleTaskClick = (task) => {
+    setSelectedTask(task);
+    setIsTaskDetailOpen(true);
+  };
+
+  const handleTaskSave = (updatedTask) => {
+    setMyTasks(tasks => 
+      tasks.map(task => 
+        task.id === updatedTask.id ? updatedTask : task
+      )
+    );
+    console.log('Task updated:', updatedTask);
+  };
+
+  const TaskItem = ({ task }) => (
+    <div 
+      className="flex items-center space-x-4 p-3 rounded-lg border hover:bg-gray-50 transition-colors cursor-pointer"
+      onClick={() => handleTaskClick(task)}
+    >
+      <Checkbox 
+        checked={task.completed} 
+        className="mt-1"
+        onClick={(e) => e.stopPropagation()}
+      />
       <div className="flex-1 min-w-0">
         <div className="flex items-center space-x-2 mb-1">
           <h4 className={`font-medium ${task.completed ? 'line-through text-gray-500' : ''}`}>
@@ -392,6 +416,14 @@ export const MyTasks = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Task Detail Dialog */}
+      <TaskDetail
+        task={selectedTask}
+        open={isTaskDetailOpen}
+        onOpenChange={setIsTaskDetailOpen}
+        onSave={handleTaskSave}
+      />
     </div>
   );
 };

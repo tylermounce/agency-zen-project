@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,18 +6,23 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Filter, Plus, Calendar, User } from 'lucide-react';
+import { Search, Filter, Plus, Calendar, User, X } from 'lucide-react';
+import { TaskDetail } from '@/components/TaskDetail';
 
 interface TaskListProps {
   workspaceId: string;
+  projectFilter?: string;
+  onClearProjectFilter?: () => void;
 }
 
-export const TaskList = ({ workspaceId }: TaskListProps) => {
+export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: TaskListProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
 
-  const tasks = [
+  const [tasks, setTasks] = useState([
     {
       id: '1',
       title: 'Design Instagram post templates',
@@ -27,7 +31,9 @@ export const TaskList = ({ workspaceId }: TaskListProps) => {
       priority: 'high',
       assignee: 'JD',
       dueDate: '2024-07-08',
-      completed: false
+      completed: false,
+      workspace: 'TechCorp Inc.',
+      notes: 'Need to create 5 different templates following brand guidelines.'
     },
     {
       id: '2',
@@ -59,7 +65,7 @@ export const TaskList = ({ workspaceId }: TaskListProps) => {
       dueDate: '2024-07-05',
       completed: true
     }
-  ];
+  ]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -80,13 +86,28 @@ export const TaskList = ({ workspaceId }: TaskListProps) => {
     }
   };
 
+  const handleTaskClick = (task) => {
+    setSelectedTask(task);
+    setIsTaskDetailOpen(true);
+  };
+
+  const handleTaskSave = (updatedTask) => {
+    setTasks(currentTasks => 
+      currentTasks.map(task => 
+        task.id === updatedTask.id ? updatedTask : task
+      )
+    );
+    console.log('Task updated:', updatedTask);
+  };
+
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          task.project.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
     const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
+    const matchesProject = !projectFilter || task.project === projectFilter;
     
-    return matchesSearch && matchesStatus && matchesPriority;
+    return matchesSearch && matchesStatus && matchesPriority && matchesProject;
   });
 
   return (
@@ -94,9 +115,26 @@ export const TaskList = ({ workspaceId }: TaskListProps) => {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <Filter className="w-5 h-5 mr-2" />
-            Filters & Search
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Filter className="w-5 h-5 mr-2" />
+              Filters & Search
+            </div>
+            {projectFilter && (
+              <div className="flex items-center space-x-2">
+                <Badge variant="secondary" className="flex items-center space-x-1">
+                  <span>Project: {projectFilter}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-4 w-4 p-0 hover:bg-transparent"
+                    onClick={onClearProjectFilter}
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </Badge>
+              </div>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -144,15 +182,23 @@ export const TaskList = ({ workspaceId }: TaskListProps) => {
       {/* Task List */}
       <Card>
         <CardHeader>
-          <CardTitle>Tasks ({filteredTasks.length})</CardTitle>
+          <CardTitle>
+            Tasks ({filteredTasks.length})
+            {projectFilter && ` - ${projectFilter}`}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             {filteredTasks.map((task) => (
-              <div key={task.id} className="flex items-center space-x-4 p-3 rounded-lg border hover:bg-gray-50 transition-colors">
+              <div 
+                key={task.id} 
+                className="flex items-center space-x-4 p-3 rounded-lg border hover:bg-gray-50 transition-colors cursor-pointer"
+                onClick={() => handleTaskClick(task)}
+              >
                 <Checkbox
                   checked={task.completed}
                   className="mt-1"
+                  onClick={(e) => e.stopPropagation()}
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-2 mb-1">
@@ -184,6 +230,14 @@ export const TaskList = ({ workspaceId }: TaskListProps) => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Task Detail Dialog */}
+      <TaskDetail
+        task={selectedTask}
+        open={isTaskDetailOpen}
+        onOpenChange={setIsTaskDetailOpen}
+        onSave={handleTaskSave}
+      />
     </div>
   );
 };

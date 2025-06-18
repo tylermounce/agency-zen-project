@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +16,7 @@ const Index = () => {
   const [selectedWorkspace, setSelectedWorkspace] = useState('client-1');
   const [activeTab, setActiveTab] = useState('projects');
   const [showMyTasks, setShowMyTasks] = useState(false);
+  const [projectFilter, setProjectFilter] = useState('');
 
   const workspaces = [
     { id: 'client-1', name: 'TechCorp Inc.', color: 'bg-blue-500', tasks: 24 },
@@ -26,6 +26,18 @@ const Index = () => {
   ];
 
   const currentWorkspace = workspaces.find(w => w.id === selectedWorkspace);
+
+  const handleProjectClick = (projectId, projectTitle) => {
+    setProjectFilter(projectTitle);
+    setActiveTab('tasks');
+    console.log(`Filtering tasks for project: ${projectTitle}`);
+  };
+
+  const handleNewProjectMessage = (projectId, projectTitle, teamMembers) => {
+    setActiveTab('messages');
+    console.log(`Starting new message thread for project: ${projectTitle} with team:`, teamMembers);
+    // In a real app, this would create a new message thread
+  };
 
   if (showMyTasks) {
     return (
@@ -126,11 +138,19 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="projects" className="space-y-6">
-            <ProjectBoard workspaceId={selectedWorkspace} />
+            <ProjectBoard 
+              workspaceId={selectedWorkspace}
+              onProjectClick={handleProjectClick}
+              onNewMessage={handleNewProjectMessage}
+            />
           </TabsContent>
 
           <TabsContent value="tasks" className="space-y-6">
-            <TaskList workspaceId={selectedWorkspace} />
+            <TaskList 
+              workspaceId={selectedWorkspace}
+              projectFilter={projectFilter}
+              onClearProjectFilter={() => setProjectFilter('')}
+            />
           </TabsContent>
 
           <TabsContent value="messages" className="space-y-6">

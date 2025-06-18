@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -9,9 +8,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 
 interface ProjectBoardProps {
   workspaceId: string;
+  onProjectClick?: (projectId: string, projectTitle: string) => void;
+  onNewMessage?: (projectId: string, projectTitle: string, teamMembers: string[]) => void;
 }
 
-export const ProjectBoard = ({ workspaceId }: ProjectBoardProps) => {
+export const ProjectBoard = ({ workspaceId, onProjectClick, onNewMessage }: ProjectBoardProps) => {
   const projects = [
     {
       id: '1',
@@ -64,10 +65,26 @@ export const ProjectBoard = ({ workspaceId }: ProjectBoardProps) => {
     }
   };
 
+  const handleProjectClick = (project) => {
+    if (onProjectClick) {
+      onProjectClick(project.id, project.title);
+    }
+  };
+
+  const handleNewMessage = (project) => {
+    if (onNewMessage) {
+      onNewMessage(project.id, project.title, project.team);
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {projects.map((project) => (
-        <Card key={project.id} className="hover:shadow-md transition-shadow">
+        <Card 
+          key={project.id} 
+          className="hover:shadow-md transition-shadow cursor-pointer"
+          onClick={() => handleProjectClick(project)}
+        >
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
               <div className="space-y-2">
@@ -82,7 +99,7 @@ export const ProjectBoard = ({ workspaceId }: ProjectBoardProps) => {
                 </div>
               </div>
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                   <Button variant="ghost" size="sm">
                     <MoreHorizontal className="w-4 h-4" />
                   </Button>
@@ -90,6 +107,9 @@ export const ProjectBoard = ({ workspaceId }: ProjectBoardProps) => {
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem>View Details</DropdownMenuItem>
                   <DropdownMenuItem>Edit Project</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleNewMessage(project)}>
+                    New Message
+                  </DropdownMenuItem>
                   <DropdownMenuItem>Archive</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
