@@ -5,16 +5,18 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Users, MessageSquare, Calendar, CheckSquare } from 'lucide-react';
+import { Plus, Users, MessageSquare, Calendar, CheckSquare, User } from 'lucide-react';
 import { ProjectBoard } from '@/components/ProjectBoard';
 import { TaskList } from '@/components/TaskList';
 import { MessagingPanel } from '@/components/MessagingPanel';
 import { WorkspaceSelector } from '@/components/WorkspaceSelector';
 import { ProjectTemplates } from '@/components/ProjectTemplates';
+import { MyTasks } from '@/components/MyTasks';
 
 const Index = () => {
   const [selectedWorkspace, setSelectedWorkspace] = useState('client-1');
   const [activeTab, setActiveTab] = useState('projects');
+  const [showMyTasks, setShowMyTasks] = useState(false);
 
   const workspaces = [
     { id: 'client-1', name: 'TechCorp Inc.', color: 'bg-blue-500', tasks: 24 },
@@ -24,6 +26,38 @@ const Index = () => {
   ];
 
   const currentWorkspace = workspaces.find(w => w.id === selectedWorkspace);
+
+  if (showMyTasks) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        {/* Header for My Tasks */}
+        <div className="bg-white border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Button variant="ghost" onClick={() => setShowMyTasks(false)}>
+                ← Back
+              </Button>
+              <h1 className="text-2xl font-semibold text-gray-900">My Tasks</h1>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Button variant="outline" size="sm">
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Messages
+              </Button>
+              <Avatar className="w-8 h-8">
+                <AvatarFallback>JD</AvatarFallback>
+              </Avatar>
+            </div>
+          </div>
+        </div>
+
+        {/* My Tasks Content */}
+        <div className="px-6 py-6">
+          <MyTasks />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -39,6 +73,10 @@ const Index = () => {
             />
           </div>
           <div className="flex items-center space-x-3">
+            <Button variant="outline" size="sm" onClick={() => setShowMyTasks(true)}>
+              <User className="w-4 h-4 mr-2" />
+              My Tasks
+            </Button>
             <Button variant="outline" size="sm">
               <MessageSquare className="w-4 h-4 mr-2" />
               Messages
