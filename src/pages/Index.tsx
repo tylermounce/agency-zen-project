@@ -115,13 +115,13 @@ const Index = () => {
               <Calendar className="w-4 h-4 mr-2" />
               Tasks
             </TabsTrigger>
-            <TabsTrigger value="templates" className="flex items-center">
-              <Plus className="w-4 h-4 mr-2" />
-              Templates
-            </TabsTrigger>
             <TabsTrigger value="messages" className="flex items-center">
               <MessageSquare className="w-4 h-4 mr-2" />
               Messages
+            </TabsTrigger>
+            <TabsTrigger value="templates" className="flex items-center">
+              <Plus className="w-4 h-4 mr-2" />
+              Templates
             </TabsTrigger>
           </TabsList>
 
@@ -133,12 +133,12 @@ const Index = () => {
             <TaskList workspaceId={selectedWorkspace} />
           </TabsContent>
 
-          <TabsContent value="templates" className="space-y-6">
-            <ProjectTemplates />
-          </TabsContent>
-
           <TabsContent value="messages" className="space-y-6">
             <MessagingPanel workspaceId={selectedWorkspace} />
+          </TabsContent>
+
+          <TabsContent value="templates" className="space-y-6">
+            <ProjectTemplates />
           </TabsContent>
         </Tabs>
       </div>
