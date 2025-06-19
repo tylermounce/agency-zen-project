@@ -145,7 +145,7 @@ export const ProjectDetail = ({ project, open, onOpenChange, onSave }: ProjectDe
             </div>
           </div>
 
-          {/* Priority and Status Row */}
+          {/* Priority and Progress Row */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="flex items-center space-x-1">
