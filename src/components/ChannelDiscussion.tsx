@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, MessageSquare, Reply, Hash } from 'lucide-react';
+import { Send, MessageSquare, Reply, Hash, Search } from 'lucide-react';
 
 interface ChannelDiscussionProps {
   workspaceId: string;
@@ -16,6 +16,7 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
   const [newPost, setNewPost] = useState('');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const posts = [
     {
@@ -76,6 +77,17 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
     }
   };
 
+  // Filter posts based on search term
+  const filteredPosts = posts.filter(post => {
+    const contentMatch = post.content.toLowerCase().includes(searchTerm.toLowerCase());
+    const authorMatch = post.author.toLowerCase().includes(searchTerm.toLowerCase());
+    const replyMatch = post.replies.some(reply => 
+      reply.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      reply.author.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    return contentMatch || authorMatch || replyMatch;
+  });
+
   return (
     <div className="space-y-6">
       {/* Channel Header */}
@@ -83,6 +95,21 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
         <Hash className="w-6 h-6 text-gray-500" />
         <h2 className="text-xl font-semibold">General Discussion</h2>
       </div>
+
+      {/* Search Bar */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Input
+              placeholder="Search messages..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* New Post */}
       <Card>
@@ -106,7 +133,7 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
 
       {/* Posts Feed */}
       <div className="space-y-4">
-        {posts.map((post) => (
+        {filteredPosts.map((post) => (
           <Card key={post.id}>
             <CardContent className="pt-6">
               <div className="space-y-4">
@@ -184,6 +211,13 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
           </Card>
         ))}
       </div>
+
+      {/* No results message */}
+      {searchTerm && filteredPosts.length === 0 && (
+        <div className="text-center py-8 text-gray-500">
+          <p>No messages found matching "{searchTerm}"</p>
+        </div>
+      )}
     </div>
   );
 };
