@@ -76,8 +76,11 @@ export const ProjectBoard = ({ workspaceId, onProjectClick, onProjectMessageClic
     }
   };
 
-  const handleEditProject = (project) => {
-    setSelectedProject(project);
+  const handleEditProject = (e, project) => {
+    e.stopPropagation(); // Prevent the card click event
+    const progress = calculateProgress(project.tasks.completed, project.tasks.total);
+    const projectWithProgress = { ...project, progress };
+    setSelectedProject(projectWithProgress);
     setIsProjectDetailOpen(true);
   };
 
@@ -97,7 +100,6 @@ export const ProjectBoard = ({ workspaceId, onProjectClick, onProjectMessageClic
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {projects.map((project) => {
           const progress = calculateProgress(project.tasks.completed, project.tasks.total);
-          const projectWithProgress = { ...project, progress };
           
           return (
             <Card 
@@ -122,7 +124,7 @@ export const ProjectBoard = ({ workspaceId, onProjectClick, onProjectMessageClic
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleEditProject(projectWithProgress)}>
+                      <DropdownMenuItem onClick={(e) => handleEditProject(e, project)}>
                         Edit Project
                       </DropdownMenuItem>
                       <DropdownMenuItem>Archive</DropdownMenuItem>
