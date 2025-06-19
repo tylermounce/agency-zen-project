@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,15 +7,22 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Search, Plus, MessageSquare, Paperclip } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface MessagingPanelProps {
   workspaceId: string;
+  selectedProjectThread?: string;
 }
 
-export const MessagingPanel = ({ workspaceId }: MessagingPanelProps) => {
+export const MessagingPanel = ({ workspaceId, selectedProjectThread }: MessagingPanelProps) => {
   const [selectedConversation, setSelectedConversation] = useState('1');
   const [newMessage, setNewMessage] = useState('');
+
+  // Auto-select the project thread if provided
+  useEffect(() => {
+    if (selectedProjectThread) {
+      setSelectedConversation(selectedProjectThread);
+    }
+  }, [selectedProjectThread]);
 
   const conversations = [
     {
@@ -39,12 +45,12 @@ export const MessagingPanel = ({ workspaceId }: MessagingPanelProps) => {
     },
     {
       id: '3',
-      title: 'Team Standup',
-      lastMessage: 'Daily standup at 9 AM tomorrow',
+      title: 'Website Launch Campaign',
+      lastMessage: 'Photography session scheduled for next week',
       timestamp: '2 days ago',
       unread: 1,
-      participants: ['JD', 'SM', 'AM', 'RK', 'KL', 'TW'],
-      type: 'general'
+      participants: ['JD', 'SM', 'TW', 'RK'],
+      type: 'project'
     }
   ];
 
@@ -87,7 +93,7 @@ export const MessagingPanel = ({ workspaceId }: MessagingPanelProps) => {
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center">
               <MessageSquare className="w-5 h-5 mr-2" />
-              Messages
+              Project Messages
             </CardTitle>
             <Button size="sm">
               <Plus className="w-4 h-4" />

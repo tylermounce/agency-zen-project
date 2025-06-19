@@ -3,15 +3,14 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Calendar, Flag, CheckSquare, Save, X, Users } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Project {
   id: string;
   title: string;
-  status: string;
   progress: number;
   dueDate: string;
   team: string[];
@@ -76,7 +75,7 @@ export const ProjectDetail = ({ project, open, onOpenChange, onSave }: ProjectDe
             />
           </div>
 
-          {/* Priority and Status */}
+          {/* Priority and Due Date */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="flex items-center space-x-1">
@@ -98,27 +97,6 @@ export const ProjectDetail = ({ project, open, onOpenChange, onSave }: ProjectDe
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Status</Label>
-              <Select
-                value={editedProject.status}
-                onValueChange={(value) => setEditedProject({...editedProject, status: value})}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Planning">Planning</SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
-                  <SelectItem value="Review">Review</SelectItem>
-                  <SelectItem value="Completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Due Date and Progress */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
               <Label className="flex items-center space-x-1">
                 <Calendar className="w-4 h-4" />
                 <span>Due Date</span>
@@ -129,15 +107,14 @@ export const ProjectDetail = ({ project, open, onOpenChange, onSave }: ProjectDe
                 onChange={(e) => setEditedProject({...editedProject, dueDate: e.target.value})}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Progress (%)</Label>
-              <Input
-                type="number"
-                min="0"
-                max="100"
-                value={editedProject.progress}
-                onChange={(e) => setEditedProject({...editedProject, progress: parseInt(e.target.value) || 0})}
-              />
+          </div>
+
+          {/* Progress Display (read-only, calculated from tasks) */}
+          <div className="space-y-2">
+            <Label>Progress (Based on completed tasks)</Label>
+            <div className="text-sm text-gray-600">
+              {editedProject.tasks.completed} of {editedProject.tasks.total} tasks completed 
+              ({Math.round((editedProject.tasks.completed / editedProject.tasks.total) * 100)}%)
             </div>
           </div>
 

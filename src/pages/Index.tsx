@@ -1,22 +1,27 @@
+
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Users, MessageSquare, Calendar, CheckSquare, User } from 'lucide-react';
+import { Plus, Users, MessageSquare, Calendar, CheckSquare, User, Hash, Inbox } from 'lucide-react';
 import { ProjectBoard } from '@/components/ProjectBoard';
 import { TaskList } from '@/components/TaskList';
 import { MessagingPanel } from '@/components/MessagingPanel';
 import { WorkspaceSelector } from '@/components/WorkspaceSelector';
 import { ProjectTemplates } from '@/components/ProjectTemplates';
 import { MyTasks } from '@/components/MyTasks';
+import { ChannelDiscussion } from '@/components/ChannelDiscussion';
+import { MasterInbox } from '@/components/MasterInbox';
 
 const Index = () => {
   const [selectedWorkspace, setSelectedWorkspace] = useState('client-1');
   const [activeTab, setActiveTab] = useState('projects');
   const [showMyTasks, setShowMyTasks] = useState(false);
+  const [showMasterInbox, setShowMasterInbox] = useState(false);
   const [projectFilter, setProjectFilter] = useState('');
+  const [selectedProjectThread, setSelectedProjectThread] = useState('');
 
   const workspaces = [
     { id: 'client-1', name: 'TechCorp Inc.', color: 'bg-blue-500', tasks: 24 },
@@ -33,11 +38,15 @@ const Index = () => {
     console.log(`Filtering tasks for project: ${projectTitle}`);
   };
 
-  const handleNewProjectMessage = (projectId, projectTitle, teamMembers) => {
+  const handleProjectMessageClick = (projectId, projectTitle) => {
+    setSelectedProjectThread(projectId);
     setActiveTab('messages');
-    console.log(`Starting new message thread for project: ${projectTitle} with team:`, teamMembers);
-    // In a real app, this would create a new message thread
+    console.log(`Opening message thread for project: ${projectTitle}`);
   };
+
+  if (showMasterInbox) {
+    return <MasterInbox userId="JD" />;
+  }
 
   if (showMyTasks) {
     return (
@@ -52,9 +61,9 @@ const Index = () => {
               <h1 className="text-2xl font-semibold text-gray-900">My Tasks</h1>
             </div>
             <div className="flex items-center space-x-3">
-              <Button variant="outline" size="sm">
-                <MessageSquare className="w-4 h-4 mr-2" />
-                Messages
+              <Button variant="outline" size="sm" onClick={() => setShowMasterInbox(true)}>
+                <Inbox className="w-4 h-4 mr-2" />
+                Master Inbox
               </Button>
               <Avatar className="w-8 h-8">
                 <AvatarFallback>JD</AvatarFallback>
@@ -89,9 +98,9 @@ const Index = () => {
               <User className="w-4 h-4 mr-2" />
               My Tasks
             </Button>
-            <Button variant="outline" size="sm">
-              <MessageSquare className="w-4 h-4 mr-2" />
-              Messages
+            <Button variant="outline" size="sm" onClick={() => setShowMasterInbox(true)}>
+              <Inbox className="w-4 h-4 mr-2" />
+              Master Inbox
             </Button>
             <Avatar className="w-8 h-8">
               <AvatarFallback>JD</AvatarFallback>
@@ -118,7 +127,7 @@ const Index = () => {
       {/* Main Content */}
       <div className="px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-96">
+          <TabsList className="grid w-full grid-cols-5 lg:w-120">
             <TabsTrigger value="projects" className="flex items-center">
               <CheckSquare className="w-4 h-4 mr-2" />
               Projects
@@ -131,6 +140,10 @@ const Index = () => {
               <MessageSquare className="w-4 h-4 mr-2" />
               Messages
             </TabsTrigger>
+            <TabsTrigger value="channel" className="flex items-center">
+              <Hash className="w-4 h-4 mr-2" />
+              Channel
+            </TabsTrigger>
             <TabsTrigger value="templates" className="flex items-center">
               <Plus className="w-4 h-4 mr-2" />
               Templates
@@ -141,7 +154,7 @@ const Index = () => {
             <ProjectBoard 
               workspaceId={selectedWorkspace}
               onProjectClick={handleProjectClick}
-              onNewMessage={handleNewProjectMessage}
+              onProjectMessageClick={handleProjectMessageClick}
             />
           </TabsContent>
 
@@ -154,7 +167,14 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="messages" className="space-y-6">
-            <MessagingPanel workspaceId={selectedWorkspace} />
+            <MessagingPanel 
+              workspaceId={selectedWorkspace}
+              selectedProjectThread={selectedProjectThread}
+            />
+          </TabsContent>
+
+          <TabsContent value="channel" className="space-y-6">
+            <ChannelDiscussion workspaceId={selectedWorkspace} />
           </TabsContent>
 
           <TabsContent value="templates" className="space-y-6">
