@@ -4,9 +4,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar, Flag, CheckSquare, Save, X, Users } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Calendar, Flag, CheckSquare, Save, X, Users, FileText } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
 interface Project {
   id: string;
@@ -16,6 +16,8 @@ interface Project {
   team: string[];
   priority: string;
   tasks: { completed: number; total: number };
+  notes?: string;
+  workspace: string;
 }
 
 interface ProjectDetailProps {
@@ -43,6 +45,7 @@ export const ProjectDetail = ({ project, open, onOpenChange, onSave }: ProjectDe
   };
 
   const teamMembers = ['JD', 'SM', 'AM', 'RK', 'KL', 'TW'];
+  const workspaces = ['TechCorp Inc.', 'Fashion Forward', 'Green Energy Co.', 'Internal Projects'];
 
   const toggleTeamMember = (member: string) => {
     const currentTeam = editedProject.team || [];
@@ -55,7 +58,7 @@ export const ProjectDetail = ({ project, open, onOpenChange, onSave }: ProjectDe
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <CheckSquare className="w-5 h-5" />
@@ -75,7 +78,74 @@ export const ProjectDetail = ({ project, open, onOpenChange, onSave }: ProjectDe
             />
           </div>
 
-          {/* Priority and Due Date */}
+          {/* Project and Workspace Row */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Project</Label>
+              <Input
+                value={editedProject.title}
+                disabled
+                className="bg-gray-50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Workspace</Label>
+              <Select
+                value={editedProject.workspace}
+                onValueChange={(value) => setEditedProject({...editedProject, workspace: value})}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {workspaces.map((workspace) => (
+                    <SelectItem key={workspace} value={workspace}>
+                      {workspace}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Assigned To and Due Date Row */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="flex items-center space-x-1">
+                <Users className="w-4 h-4" />
+                <span>Members</span>
+              </Label>
+              <div className="grid grid-cols-2 gap-2 p-3 border rounded-md max-h-32 overflow-y-auto">
+                {teamMembers.map((member) => (
+                  <div key={member} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id={member}
+                      checked={editedProject.team?.includes(member) || false}
+                      onChange={() => toggleTeamMember(member)}
+                      className="rounded"
+                    />
+                    <Label htmlFor={member} className="text-sm font-medium">
+                      {member}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center space-x-1">
+                <Calendar className="w-4 h-4" />
+                <span>Due Date</span>
+              </Label>
+              <Input
+                type="date"
+                value={editedProject.dueDate}
+                onChange={(e) => setEditedProject({...editedProject, dueDate: e.target.value})}
+              />
+            </div>
+          </div>
+
+          {/* Priority and Status Row */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="flex items-center space-x-1">
@@ -97,47 +167,26 @@ export const ProjectDetail = ({ project, open, onOpenChange, onSave }: ProjectDe
               </Select>
             </div>
             <div className="space-y-2">
-              <Label className="flex items-center space-x-1">
-                <Calendar className="w-4 h-4" />
-                <span>Due Date</span>
-              </Label>
-              <Input
-                type="date"
-                value={editedProject.dueDate}
-                onChange={(e) => setEditedProject({...editedProject, dueDate: e.target.value})}
-              />
+              <Label>Progress</Label>
+              <div className="text-sm text-gray-600 p-3 bg-gray-50 rounded-md">
+                {editedProject.tasks.completed} of {editedProject.tasks.total} tasks completed 
+                ({Math.round((editedProject.tasks.completed / editedProject.tasks.total) * 100)}%)
+              </div>
             </div>
           </div>
 
-          {/* Progress Display (read-only, calculated from tasks) */}
-          <div className="space-y-2">
-            <Label>Progress (Based on completed tasks)</Label>
-            <div className="text-sm text-gray-600">
-              {editedProject.tasks.completed} of {editedProject.tasks.total} tasks completed 
-              ({Math.round((editedProject.tasks.completed / editedProject.tasks.total) * 100)}%)
-            </div>
-          </div>
-
-          {/* Team Assignment */}
+          {/* Notes */}
           <div className="space-y-2">
             <Label className="flex items-center space-x-1">
-              <Users className="w-4 h-4" />
-              <span>Assigned Team Members</span>
+              <FileText className="w-4 h-4" />
+              <span>Notes</span>
             </Label>
-            <div className="grid grid-cols-3 gap-3">
-              {teamMembers.map((member) => (
-                <div key={member} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={member}
-                    checked={editedProject.team?.includes(member) || false}
-                    onCheckedChange={() => toggleTeamMember(member)}
-                  />
-                  <Label htmlFor={member} className="text-sm font-medium">
-                    {member}
-                  </Label>
-                </div>
-              ))}
-            </div>
+            <Textarea
+              value={editedProject.notes || ''}
+              onChange={(e) => setEditedProject({...editedProject, notes: e.target.value})}
+              placeholder="Add project notes..."
+              className="min-h-[120px] resize-none"
+            />
           </div>
         </div>
 
@@ -147,7 +196,7 @@ export const ProjectDetail = ({ project, open, onOpenChange, onSave }: ProjectDe
             <X className="w-4 h-4 mr-2" />
             Cancel
           </Button>
-          <Button onClick={handleSave}>
+          <Button onClick={handleSave} className="bg-gray-900 hover:bg-gray-800">
             <Save className="w-4 h-4 mr-2" />
             Save Changes
           </Button>

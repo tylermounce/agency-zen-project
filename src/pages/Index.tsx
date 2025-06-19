@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,7 +16,7 @@ import { MasterInbox } from '@/components/MasterInbox';
 
 const Index = () => {
   const [selectedWorkspace, setSelectedWorkspace] = useState('client-1');
-  const [activeTab, setActiveTab] = useState('projects');
+  const [activeTab, setActiveTab] = useState('channel');
   const [showMyTasks, setShowMyTasks] = useState(false);
   const [showMasterInbox, setShowMasterInbox] = useState(false);
   const [projectFilter, setProjectFilter] = useState('');
@@ -45,7 +44,7 @@ const Index = () => {
   };
 
   if (showMasterInbox) {
-    return <MasterInbox userId="JD" />;
+    return <MasterInbox userId="JD" onBack={() => setShowMasterInbox(false)} />;
   }
 
   if (showMyTasks) {
@@ -128,6 +127,10 @@ const Index = () => {
       <div className="px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-5 lg:w-120">
+            <TabsTrigger value="channel" className="flex items-center">
+              <Hash className="w-4 h-4 mr-2" />
+              Channel
+            </TabsTrigger>
             <TabsTrigger value="projects" className="flex items-center">
               <CheckSquare className="w-4 h-4 mr-2" />
               Projects
@@ -140,15 +143,15 @@ const Index = () => {
               <MessageSquare className="w-4 h-4 mr-2" />
               Messages
             </TabsTrigger>
-            <TabsTrigger value="channel" className="flex items-center">
-              <Hash className="w-4 h-4 mr-2" />
-              Channel
-            </TabsTrigger>
             <TabsTrigger value="templates" className="flex items-center">
               <Plus className="w-4 h-4 mr-2" />
               Templates
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="channel" className="space-y-6">
+            <ChannelDiscussion workspaceId={selectedWorkspace} />
+          </TabsContent>
 
           <TabsContent value="projects" className="space-y-6">
             <ProjectBoard 
@@ -171,10 +174,6 @@ const Index = () => {
               workspaceId={selectedWorkspace}
               selectedProjectThread={selectedProjectThread}
             />
-          </TabsContent>
-
-          <TabsContent value="channel" className="space-y-6">
-            <ChannelDiscussion workspaceId={selectedWorkspace} />
           </TabsContent>
 
           <TabsContent value="templates" className="space-y-6">

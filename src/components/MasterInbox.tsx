@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,16 +6,24 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Search, Inbox, MessageSquare, Hash, User } from 'lucide-react';
+import { Send, Search, Inbox, MessageSquare, Hash, User, ArrowLeft, Plus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface MasterInboxProps {
   userId: string;
+  onBack: () => void;
 }
 
-export const MasterInbox = ({ userId }: MasterInboxProps) => {
+export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
   const [selectedThread, setSelectedThread] = useState('1');
   const [newMessage, setNewMessage] = useState('');
+  const [showNewMessageDialog, setShowNewMessageDialog] = useState(false);
+  const [messageType, setMessageType] = useState('dm');
+  const [selectedUser, setSelectedUser] = useState('');
+  const [selectedProject, setSelectedProject] = useState('');
+  const [selectedWorkspace, setSelectedWorkspace] = useState('');
 
   // All threads across workspaces and DMs
   const allThreads = [
@@ -93,6 +100,10 @@ export const MasterInbox = ({ userId }: MasterInboxProps) => {
     }
   ];
 
+  const teamMembers = ['SM', 'AM', 'RK', 'KL', 'TW'];
+  const workspaces = ['TechCorp Inc.', 'Fashion Forward', 'Green Energy Co.', 'Internal Projects'];
+  const projects = ['Q4 Social Media Campaign', 'Brand Identity Redesign', 'Website Launch Campaign'];
+
   const getThreadIcon = (type: string) => {
     switch (type) {
       case 'project': return <MessageSquare className="w-4 h-4" />;
@@ -109,14 +120,31 @@ export const MasterInbox = ({ userId }: MasterInboxProps) => {
     }
   };
 
+  const handleNewMessage = () => {
+    console.log('Creating new message:', { messageType, selectedUser, selectedProject, selectedWorkspace });
+    setShowNewMessageDialog(false);
+    setSelectedUser('');
+    setSelectedProject('');
+    setSelectedWorkspace('');
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center space-x-3">
-          <Inbox className="w-6 h-6" />
-          <h1 className="text-2xl font-semibold text-gray-900">Master Inbox</h1>
-          <Badge variant="secondary">{allThreads.filter(t => t.unread > 0).length} unread</Badge>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Button variant="ghost" onClick={onBack} className="p-2">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <Inbox className="w-6 h-6" />
+            <h1 className="text-2xl font-semibold text-gray-900">Master Inbox</h1>
+            <Badge variant="secondary">{allThreads.filter(t => t.unread > 0).length} unread</Badge>
+          </div>
+          <Button onClick={() => setShowNewMessageDialog(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            New Message
+          </Button>
         </div>
       </div>
 
@@ -239,6 +267,95 @@ export const MasterInbox = ({ userId }: MasterInboxProps) => {
           </div>
         </div>
       </div>
+
+      {/* New Message Dialog */}
+      <Dialog open={showNewMessageDialog} onOpenChange={setShowNewMessageDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>New Message</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Message Type</label>
+              <Select value={messageType} onValueChange={setMessageType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="dm">Direct Message</SelectItem>
+                  <SelectItem value="project">Project Thread</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {messageType === 'dm' && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Send to</label>
+                <Select value={selectedUser} onValueChange={setSelectedUser}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a user" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teamMembers.map((member) => (
+                      <SelectItem key={member} value={member}>
+                        {member}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {messageType === 'project' && (
+              <>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Workspace</label>
+                  <Select value={selectedWorkspace} onValueChange={setSelectedWorkspace}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select workspace" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {workspaces.map((workspace) => (
+                        <SelectItem key={workspace} value={workspace}>
+                          {workspace}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Project</label>
+                  <Select value={selectedProject} onValueChange={setSelectedProject}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects.map((project) => (
+                        <SelectItem key={project} value={project}>
+                          {project}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-4 border-t">
+            <Button variant="outline" onClick={() => setShowNewMessageDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleNewMessage}
+              disabled={messageType === 'dm' ? !selectedUser : !selectedProject || !selectedWorkspace}
+            >
+              Start Conversation
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -26,7 +26,9 @@ export const ProjectBoard = ({ workspaceId, onProjectClick, onProjectMessageClic
       dueDate: '2024-07-15',
       team: ['JD', 'SM', 'KL'],
       priority: 'High',
-      tasks: { completed: 13, total: 20 }
+      tasks: { completed: 13, total: 20 },
+      workspace: 'TechCorp Inc.',
+      notes: 'Focus on Instagram and LinkedIn campaigns with emphasis on brand consistency.'
     },
     {
       id: '2',
@@ -34,7 +36,9 @@ export const ProjectBoard = ({ workspaceId, onProjectClick, onProjectMessageClic
       dueDate: '2024-07-10',
       team: ['AM', 'RK'],
       priority: 'Medium',
-      tasks: { completed: 17, total: 20 }
+      tasks: { completed: 17, total: 20 },
+      workspace: 'TechCorp Inc.',
+      notes: 'Complete rebrand including logo, colors, and typography guidelines.'
     },
     {
       id: '3',
@@ -42,7 +46,9 @@ export const ProjectBoard = ({ workspaceId, onProjectClick, onProjectMessageClic
       dueDate: '2024-07-25',
       team: ['JD', 'SM', 'TW', 'RK'],
       priority: 'High',
-      tasks: { completed: 5, total: 20 }
+      tasks: { completed: 5, total: 20 },
+      workspace: 'TechCorp Inc.',
+      notes: 'Coordinate with development team for launch timeline and marketing materials.'
     }
   ]);
 
