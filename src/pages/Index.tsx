@@ -1,10 +1,11 @@
+
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Users, MessageSquare, Calendar, CheckSquare, User, Hash, Inbox } from 'lucide-react';
+import { Plus, Users, MessageSquare, Calendar, CheckSquare, User, Hash, Inbox, LogOut } from 'lucide-react';
 import { ProjectBoard } from '@/components/ProjectBoard';
 import { TaskList } from '@/components/TaskList';
 import { MessagingPanel } from '@/components/MessagingPanel';
@@ -13,8 +14,10 @@ import { ProjectTemplates } from '@/components/ProjectTemplates';
 import { MyTasks } from '@/components/MyTasks';
 import { ChannelDiscussion } from '@/components/ChannelDiscussion';
 import { MasterInbox } from '@/components/MasterInbox';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Index = () => {
+  const { user, signOut } = useAuth();
   const [selectedWorkspace, setSelectedWorkspace] = useState('client-1');
   const [activeTab, setActiveTab] = useState('channel');
   const [showMyTasks, setShowMyTasks] = useState(false);
@@ -43,8 +46,12 @@ const Index = () => {
     console.log(`Opening message thread for project: ${projectTitle}`);
   };
 
+  const getUserInitials = (email: string) => {
+    return email.split('@')[0].substring(0, 2).toUpperCase();
+  };
+
   if (showMasterInbox) {
-    return <MasterInbox userId="JD" onBack={() => setShowMasterInbox(false)} />;
+    return <MasterInbox userId={getUserInitials(user?.email || '')} onBack={() => setShowMasterInbox(false)} />;
   }
 
   if (showMyTasks) {
@@ -64,8 +71,12 @@ const Index = () => {
                 <Inbox className="w-4 h-4 mr-2" />
                 Master Inbox
               </Button>
+              <Button variant="ghost" size="sm" onClick={signOut}>
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </Button>
               <Avatar className="w-8 h-8">
-                <AvatarFallback>JD</AvatarFallback>
+                <AvatarFallback>{getUserInitials(user?.email || '')}</AvatarFallback>
               </Avatar>
             </div>
           </div>
@@ -101,8 +112,12 @@ const Index = () => {
               <Inbox className="w-4 h-4 mr-2" />
               Master Inbox
             </Button>
+            <Button variant="ghost" size="sm" onClick={signOut}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
+            </Button>
             <Avatar className="w-8 h-8">
-              <AvatarFallback>JD</AvatarFallback>
+              <AvatarFallback>{getUserInitials(user?.email || '')}</AvatarFallback>
             </Avatar>
           </div>
         </div>
