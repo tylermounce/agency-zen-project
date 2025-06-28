@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,6 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Search, Plus, MessageSquare, Paperclip } from 'lucide-react';
+import { useMessaging } from '@/hooks/useMessaging';
+import { useUsers } from '@/hooks/useUsers';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface MessagingPanelProps {
   workspaceId: string;
@@ -14,76 +18,59 @@ interface MessagingPanelProps {
 }
 
 export const MessagingPanel = ({ workspaceId, selectedProjectThread }: MessagingPanelProps) => {
-  const [selectedConversation, setSelectedConversation] = useState('1');
+  const { user } = useAuth();
+  const { users } = useUsers();
+  const { conversations, messages, sendMessage, createConversation, fetchMessages, getProjectThreadId } = useMessaging();
+  const [selectedConversation, setSelectedConversation] = useState('');
   const [newMessage, setNewMessage] = useState('');
+
+  // Filter conversations for current workspace and project type
+  const workspaceConversations = conversations.filter(
+    c => c.workspace_id === workspaceId && c.thread_type === 'project'
+  );
 
   // Auto-select the project thread if provided
   useEffect(() => {
     if (selectedProjectThread) {
-      setSelectedConversation(selectedProjectThread);
+      // Find existing conversation for this project
+      const existingThreadId = getProjectThreadId(selectedProjectThread, workspaceId);
+      if (existingThreadId) {
+        setSelectedConversation(existingThreadId);
+        fetchMessages(existingThreadId);
+      }
     }
-  }, [selectedProjectThread]);
+  }, [selectedProjectThread, workspaceId, getProjectThreadId, fetchMessages]);
 
-  const conversations = [
-    {
-      id: '1',
-      title: 'Q4 Social Media Campaign',
-      lastMessage: 'The Instagram templates look great! Ready for review.',
-      timestamp: '2 hours ago',
-      unread: 3,
-      participants: ['JD', 'SM', 'KL'],
-      type: 'project'
-    },
-    {
-      id: '2',
-      title: 'Brand Identity Feedback',
-      lastMessage: 'Client approved the color palette. Moving to logo concepts.',
-      timestamp: '1 day ago',
-      unread: 0,
-      participants: ['AM', 'RK'],
-      type: 'project'
-    },
-    {
-      id: '3',
-      title: 'Website Launch Campaign',
-      lastMessage: 'Photography session scheduled for next week',
-      timestamp: '2 days ago',
-      unread: 1,
-      participants: ['JD', 'SM', 'TW', 'RK'],
-      type: 'project'
-    }
-  ];
+  const getUserById = (userId: string) => {
+    return users.find(u => u.id === userId);
+  };
 
-  const messages = [
-    {
-      id: '1',
-      sender: 'SM',
-      content: 'Hey team! I\'ve finished the Instagram post templates for the Q4 campaign. They\'re ready for review.',
-      timestamp: '2 hours ago',
-      attachments: ['instagram-templates.zip']
-    },
-    {
-      id: '2',
-      sender: 'JD',
-      content: 'Great work! The templates look fantastic. I especially love the color scheme consistency.',
-      timestamp: '1 hour ago',
-      attachments: []
-    },
-    {
-      id: '3',
-      sender: 'KL',
-      content: 'Agreed! Should we schedule a client review for tomorrow?',
-      timestamp: '45 minutes ago',
-      attachments: []
-    }
-  ];
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedConversation) return;
 
-  const sendMessage = () => {
-    if (newMessage.trim()) {
-      console.log('Sending message:', newMessage);
+    const conversation = conversations.find(c => c.thread_id === selectedConversation);
+    if (!conversation) return;
+
+    try {
+      await sendMessage(
+        newMessage,
+        conversation.thread_type,
+        conversation.thread_id,
+        conversation.workspace_id || undefined
+      );
       setNewMessage('');
+    } catch (err) {
+      console.error('Failed to send message:', err);
     }
   };
+
+  const handleConversationSelect = (threadId: string) => {
+    setSelectedConversation(threadId);
+    fetchMessages(threadId);
+  };
+
+  const currentConversation = conversations.find(c => c.thread_id === selectedConversation);
+  const currentMessages = selectedConversation ? messages[selectedConversation] || [] : [];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
@@ -95,9 +82,6 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
               <MessageSquare className="w-5 h-5 mr-2" />
               Project Messages
             </CardTitle>
-            <Button size="sm">
-              <Plus className="w-4 h-4" />
-            </Button>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -107,44 +91,52 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
         <CardContent className="p-0">
           <ScrollArea className="h-[400px]">
             <div className="space-y-1 p-4">
-              {conversations.map((conversation) => (
+              {workspaceConversations.map((conversation) => (
                 <div
                   key={conversation.id}
-                  onClick={() => setSelectedConversation(conversation.id)}
+                  onClick={() => handleConversationSelect(conversation.thread_id)}
                   className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                    selectedConversation === conversation.id
+                    selectedConversation === conversation.thread_id
                       ? 'bg-blue-50 border-blue-200 border'
                       : 'hover:bg-gray-50'
                   }`}
                 >
                   <div className="flex items-start justify-between mb-2">
                     <h4 className="font-medium text-sm truncate">{conversation.title}</h4>
-                    {conversation.unread > 0 && (
-                      <Badge className="bg-blue-500 text-white text-xs px-2 py-1">
-                        {conversation.unread}
-                      </Badge>
-                    )}
                   </div>
-                  <p className="text-xs text-gray-600 mb-2 line-clamp-2">
-                    {conversation.lastMessage}
-                  </p>
                   <div className="flex items-center justify-between">
                     <div className="flex -space-x-1">
-                      {conversation.participants.slice(0, 3).map((participant, index) => (
-                        <Avatar key={index} className="w-5 h-5 border border-white">
-                          <AvatarFallback className="text-xs">{participant}</AvatarFallback>
-                        </Avatar>
-                      ))}
+                      {conversation.participants.slice(0, 3).map((participantId, index) => {
+                        const participant = getUserById(participantId);
+                        return (
+                          <Avatar key={index} className="w-5 h-5 border border-white">
+                            <AvatarFallback className="text-xs">
+                              {participant?.initials || 'UN'}
+                            </AvatarFallback>
+                          </Avatar>
+                        );
+                      })}
                       {conversation.participants.length > 3 && (
                         <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-xs">
                           +{conversation.participants.length - 3}
                         </div>
                       )}
                     </div>
-                    <span className="text-xs text-gray-500">{conversation.timestamp}</span>
+                    <span className="text-xs text-gray-500">
+                      {conversation.last_message_at 
+                        ? new Date(conversation.last_message_at).toLocaleDateString()
+                        : new Date(conversation.created_at).toLocaleDateString()
+                      }
+                    </span>
                   </div>
                 </div>
               ))}
+              {workspaceConversations.length === 0 && (
+                <div className="p-4 text-center text-gray-500">
+                  <p>No project conversations yet</p>
+                  <p className="text-sm">Start messaging from the Master Inbox</p>
+                </div>
+              )}
             </div>
           </ScrollArea>
         </CardContent>
@@ -152,79 +144,108 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
 
       {/* Chat Area */}
       <Card className="lg:col-span-2">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <h3 className="font-semibold">
-                {conversations.find(c => c.id === selectedConversation)?.title}
-              </h3>
-              <div className="flex -space-x-1">
-                {conversations
-                  .find(c => c.id === selectedConversation)
-                  ?.participants.map((participant, index) => (
-                    <Avatar key={index} className="w-6 h-6 border border-white">
-                      <AvatarFallback className="text-xs">{participant}</AvatarFallback>
-                    </Avatar>
-                  ))}
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <ScrollArea className="h-[300px] pr-4">
-            <div className="space-y-4">
-              {messages.map((message) => (
-                <div key={message.id} className="flex space-x-3">
-                  <Avatar className="w-8 h-8">
-                    <AvatarFallback>{message.sender}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium text-sm">{message.sender}</span>
-                      <span className="text-xs text-gray-500">{message.timestamp}</span>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-3 text-sm">
-                      {message.content}
-                    </div>
-                    {message.attachments.length > 0 && (
-                      <div className="flex items-center space-x-2 mt-2">
-                        {message.attachments.map((attachment, index) => (
-                          <div key={index} className="flex items-center space-x-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                            <Paperclip className="w-3 h-3" />
-                            <span>{attachment}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+        {currentConversation ? (
+          <>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <h3 className="font-semibold">{currentConversation.title}</h3>
+                  <div className="flex -space-x-1">
+                    {currentConversation.participants.map((participantId, index) => {
+                      const participant = getUserById(participantId);
+                      return (
+                        <Avatar key={index} className="w-6 h-6 border border-white">
+                          <AvatarFallback className="text-xs">
+                            {participant?.initials || 'UN'}
+                          </AvatarFallback>
+                        </Avatar>
+                      );
+                    })}
                   </div>
                 </div>
-              ))}
-            </div>
-          </ScrollArea>
-          
-          <div className="flex space-x-2">
-            <Textarea
-              placeholder="Type your message..."
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              className="min-h-[60px] resize-none"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  sendMessage();
-                }
-              }}
-            />
-            <div className="flex flex-col space-y-2">
-              <Button size="icon" variant="outline">
-                <Paperclip className="w-4 h-4" />
-              </Button>
-              <Button size="icon" onClick={sendMessage}>
-                <Send className="w-4 h-4" />
-              </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <ScrollArea className="h-[300px] pr-4">
+                <div className="space-y-4">
+                  {currentMessages.length === 0 ? (
+                    <div className="text-center text-gray-500 py-8">
+                      <p>No messages yet</p>
+                      <p className="text-sm">Start the conversation below</p>
+                    </div>
+                  ) : (
+                    currentMessages.map((message) => {
+                      const sender = getUserById(message.sender_id);
+                      const isCurrentUser = message.sender_id === user?.id;
+                      return (
+                        <div key={message.id} className={`flex space-x-3 ${isCurrentUser ? 'justify-end' : ''}`}>
+                          {!isCurrentUser && (
+                            <Avatar className="w-8 h-8">
+                              <AvatarFallback>{sender?.initials || 'UN'}</AvatarFallback>
+                            </Avatar>
+                          )}
+                          <div className={`flex-1 space-y-1 max-w-xs ${isCurrentUser ? 'items-end' : ''}`}>
+                            <div className="flex items-center space-x-2">
+                              <span className="font-medium text-sm">
+                                {isCurrentUser ? 'You' : (sender?.full_name || 'Unknown User')}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {new Date(message.created_at).toLocaleString()}
+                              </span>
+                            </div>
+                            <div className={`rounded-lg p-3 text-sm ${
+                              isCurrentUser 
+                                ? 'bg-blue-500 text-white ml-auto' 
+                                : 'bg-gray-50'
+                            }`}>
+                              {message.content}
+                            </div>
+                          </div>
+                          {isCurrentUser && (
+                            <Avatar className="w-8 h-8">
+                              <AvatarFallback>{sender?.initials || 'YU'}</AvatarFallback>
+                            </Avatar>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </ScrollArea>
+              
+              <div className="flex space-x-2">
+                <Textarea
+                  placeholder="Type your message..."
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  className="min-h-[60px] resize-none"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                />
+                <div className="flex flex-col space-y-2">
+                  <Button size="icon" variant="outline">
+                    <Paperclip className="w-4 h-4" />
+                  </Button>
+                  <Button size="icon" onClick={handleSendMessage} disabled={!newMessage.trim()}>
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-gray-500 h-full">
+            <div className="text-center">
+              <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+              <p className="text-lg font-medium">Select a project conversation</p>
+              <p className="text-sm">Choose from your project conversations on the left</p>
             </div>
           </div>
-        </CardContent>
+        )}
       </Card>
     </div>
   );

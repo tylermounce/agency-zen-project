@@ -108,6 +108,27 @@ export const useMessaging = () => {
     }
   };
 
+  const findExistingProjectConversation = async (projectTitle: string, workspaceId?: string) => {
+    if (!user) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('thread_type', 'project')
+        .eq('title', projectTitle)
+        .eq('workspace_id', workspaceId || null)
+        .contains('participants', [user.id])
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      console.error('Error finding existing project conversation:', err);
+      return null;
+    }
+  };
+
   const createConversation = async (
     threadType: string,
     title: string,
@@ -117,6 +138,15 @@ export const useMessaging = () => {
     if (!user) return null;
 
     try {
+      // For project threads, check if one already exists
+      if (threadType === 'project' && title && workspaceId) {
+        const existingConversation = await findExistingProjectConversation(title, workspaceId);
+        if (existingConversation) {
+          console.log('Found existing project conversation:', existingConversation);
+          return existingConversation;
+        }
+      }
+
       const threadId = `${threadType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       // Ensure current user is included in participants
@@ -143,6 +173,15 @@ export const useMessaging = () => {
       console.error('Error creating conversation:', err);
       throw err;
     }
+  };
+
+  const getProjectThreadId = (projectTitle: string, workspaceId?: string) => {
+    const projectConversation = conversations.find(
+      c => c.thread_type === 'project' && 
+           c.title === projectTitle && 
+           c.workspace_id === workspaceId
+    );
+    return projectConversation?.thread_id;
   };
 
   // Subscribe to real-time updates for conversations
@@ -221,6 +260,8 @@ export const useMessaging = () => {
     fetchMessages,
     sendMessage,
     createConversation,
-    fetchConversations
+    fetchConversations,
+    findExistingProjectConversation,
+    getProjectThreadId
   };
 };
