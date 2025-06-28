@@ -10,8 +10,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Plus, Calendar, User, Filter, Search, ChevronDown, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { TaskDetail } from '@/components/TaskDetail';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const MyTasks = () => {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
@@ -19,8 +21,12 @@ export const MyTasks = () => {
   const [showCompleted, setShowCompleted] = useState(false);
   const [isNewTaskOpen, setIsNewTaskOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskWorkspace, setNewTaskWorkspace] = useState('');
   const [newTaskProject, setNewTaskProject] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState('medium');
+  const [newTaskAssignee, setNewTaskAssignee] = useState('');
+  const [newTaskDueDate, setNewTaskDueDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isPersonalTask, setIsPersonalTask] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
   
@@ -97,24 +103,21 @@ export const MyTasks = () => {
     'Internal Projects'
   ];
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'todo': return 'bg-gray-100 text-gray-800';
-      case 'in-progress': return 'bg-blue-100 text-blue-800';
-      case 'review': return 'bg-yellow-100 text-yellow-800';
-      case 'done': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  const projects = {
+    'TechCorp Inc.': ['Q4 Social Media Campaign', 'Website Redesign', 'Mobile App Development'],
+    'Fashion Forward': ['Website Launch Campaign', 'Summer Collection', 'Brand Refresh'],
+    'Green Energy Co.': ['Brand Identity Redesign', 'Marketing Campaign', 'Product Launch'],
+    'Internal Projects': ['Team Building', 'Process Improvement', 'Training']
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800';
-      case 'medium': return 'bg-orange-100 text-orange-800';
-      case 'low': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const teamMembers = ['JD', 'SM', 'AM', 'RK', 'KL', 'TW'];
+
+  // Set default assignee to current user when dialog opens
+  React.useEffect(() => {
+    if (isNewTaskOpen && user) {
+      setNewTaskAssignee(user.email?.substring(0, 2).toUpperCase() || 'JD');
     }
-  };
+  }, [isNewTaskOpen, user]);
 
   // Filter and sort tasks
   const filteredTasks = myTasks
@@ -139,20 +142,53 @@ export const MyTasks = () => {
   const upcomingTasks = filteredTasks.filter(task => !task.completed && task.dueDate > today);
   const completedTasks = filteredTasks.filter(task => task.completed);
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'todo': return 'bg-gray-100 text-gray-800';
+      case 'in-progress': return 'bg-blue-100 text-blue-800';
+      case 'review': return 'bg-yellow-100 text-yellow-800';
+      case 'done': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high': return 'bg-red-100 text-red-800';
+      case 'medium': return 'bg-orange-100 text-orange-800';
+      case 'low': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   const handleCreateTask = () => {
     if (!newTaskTitle.trim()) return;
     
-    console.log('Creating new task:', {
+    const newTask = {
+      id: Date.now().toString(),
       title: newTaskTitle,
-      project: newTaskProject,
+      project: isPersonalTask ? 'Personal' : newTaskProject,
+      workspace: isPersonalTask ? 'Personal' : newTaskWorkspace,
+      status: 'todo',
       priority: newTaskPriority,
-      assignee: 'JD',
-      dueDate: new Date().toISOString().split('T')[0],
-    });
+      assignee: newTaskAssignee,
+      dueDate: newTaskDueDate,
+      completed: false,
+      notes: ''
+    };
     
+    setMyTasks(prev => [...prev, newTask]);
+    
+    console.log('Creating new task:', newTask);
+    
+    // Reset form
     setNewTaskTitle('');
+    setNewTaskWorkspace('');
     setNewTaskProject('');
     setNewTaskPriority('medium');
+    setNewTaskAssignee(user?.email?.substring(0, 2).toUpperCase() || 'JD');
+    setNewTaskDueDate(new Date().toISOString().split('T')[0]);
+    setIsPersonalTask(false);
     setIsNewTaskOpen(false);
   };
 
@@ -235,7 +271,7 @@ export const MyTasks = () => {
                     New Task
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-md">
                   <DialogHeader>
                     <DialogTitle>Create New Task</DialogTitle>
                   </DialogHeader>
@@ -248,14 +284,58 @@ export const MyTasks = () => {
                         onChange={(e) => setNewTaskTitle(e.target.value)}
                       />
                     </div>
-                    <div>
-                      <label className="text-sm font-medium">Project</label>
-                      <Input
-                        placeholder="Enter project name..."
-                        value={newTaskProject}
-                        onChange={(e) => setNewTaskProject(e.target.value)}
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="personal-task"
+                        checked={isPersonalTask}
+                        onCheckedChange={setIsPersonalTask}
                       />
+                      <label htmlFor="personal-task" className="text-sm font-medium">
+                        Personal Task (not attached to workspace/project)
+                      </label>
                     </div>
+
+                    {!isPersonalTask && (
+                      <>
+                        <div>
+                          <label className="text-sm font-medium">Workspace</label>
+                          <Select value={newTaskWorkspace} onValueChange={setNewTaskWorkspace}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select workspace..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {workspaces.map((workspace) => (
+                                <SelectItem key={workspace} value={workspace}>
+                                  {workspace}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <label className="text-sm font-medium">Project</label>
+                          <Select 
+                            value={newTaskProject} 
+                            onValueChange={setNewTaskProject}
+                            disabled={!newTaskWorkspace}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder={newTaskWorkspace ? "Select project..." : "Select workspace first"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {newTaskWorkspace && projects[newTaskWorkspace]?.map((project) => (
+                                <SelectItem key={project} value={project}>
+                                  {project}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </>
+                    )}
+
                     <div>
                       <label className="text-sm font-medium">Priority</label>
                       <Select value={newTaskPriority} onValueChange={setNewTaskPriority}>
@@ -269,14 +349,38 @@ export const MyTasks = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="flex items-center space-x-2 text-sm text-gray-600">
-                      <User className="w-4 h-4" />
-                      <span>Assigned to: You (JD)</span>
+
+                    <div>
+                      <label className="text-sm font-medium flex items-center space-x-1">
+                        <User className="w-4 h-4" />
+                        <span>Assigned To</span>
+                      </label>
+                      <Select value={newTaskAssignee} onValueChange={setNewTaskAssignee}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {teamMembers.map((member) => (
+                            <SelectItem key={member} value={member}>
+                              {member}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <div className="flex items-center space-x-2 text-sm text-gray-600">
-                      <Calendar className="w-4 h-4" />
-                      <span>Due date: Today ({new Date().toLocaleDateString()})</span>
+
+                    <div>
+                      <label className="text-sm font-medium flex items-center space-x-1">
+                        <Calendar className="w-4 h-4" />
+                        <span>Due Date</span>
+                      </label>
+                      <Input
+                        type="date"
+                        value={newTaskDueDate}
+                        onChange={(e) => setNewTaskDueDate(e.target.value)}
+                      />
                     </div>
+
                     <div className="flex justify-end space-x-2">
                       <Button variant="outline" onClick={() => setIsNewTaskOpen(false)}>
                         Cancel
