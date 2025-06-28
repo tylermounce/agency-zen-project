@@ -11,9 +11,11 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Plus, Calendar, User, Filter, Search, ChevronDown, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { TaskDetail } from '@/components/TaskDetail';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUsers } from '@/hooks/useUsers';
 
 export const MyTasks = () => {
   const { user } = useAuth();
+  const { users, loading: usersLoading } = useUsers();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
@@ -114,10 +116,11 @@ export const MyTasks = () => {
 
   // Set default assignee to current user when dialog opens
   React.useEffect(() => {
-    if (isNewTaskOpen && user) {
-      setNewTaskAssignee(user.email?.substring(0, 2).toUpperCase() || 'JD');
+    if (isNewTaskOpen && user && users.length > 0) {
+      const currentUser = users.find(u => u.id === user.id);
+      setNewTaskAssignee(currentUser?.initials || user.email?.substring(0, 2).toUpperCase() || 'JD');
     }
-  }, [isNewTaskOpen, user]);
+  }, [isNewTaskOpen, user, users]);
 
   // Filter and sort tasks
   const filteredTasks = myTasks
@@ -355,14 +358,14 @@ export const MyTasks = () => {
                         <User className="w-4 h-4" />
                         <span>Assigned To</span>
                       </label>
-                      <Select value={newTaskAssignee} onValueChange={setNewTaskAssignee}>
+                      <Select value={newTaskAssignee} onValueChange={setNewTaskAssignee} disabled={usersLoading}>
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder={usersLoading ? "Loading users..." : "Select user..."} />
                         </SelectTrigger>
                         <SelectContent>
-                          {teamMembers.map((member) => (
-                            <SelectItem key={member} value={member}>
-                              {member}
+                          {users.map((user) => (
+                            <SelectItem key={user.id} value={user.initials}>
+                              {user.full_name} ({user.initials})
                             </SelectItem>
                           ))}
                         </SelectContent>
