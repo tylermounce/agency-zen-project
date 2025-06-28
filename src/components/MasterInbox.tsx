@@ -80,7 +80,7 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
       if (messageType === 'dm') {
         if (!selectedUser) return;
         const targetUser = users.find(u => u.id === selectedUser);
-        title = targetUser?.full_name || 'Direct Message';
+        title = `DM with ${targetUser?.full_name || 'Unknown User'}`;
         participants = [selectedUser];
       } else if (messageType === 'project') {
         if (!selectedProject || !selectedWorkspace) return;
@@ -111,6 +111,7 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
       setSelectedProject('');
       setSelectedWorkspace('');
       setNewMessageContent('');
+      setMessageType('dm');
       
       // Select the new conversation
       if (conversation) {
@@ -127,7 +128,7 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
     if (selectedThread) {
       fetchMessages(selectedThread);
     }
-  }, [selectedThread]);
+  }, [selectedThread, fetchMessages]);
 
   const currentConversation = conversations.find(c => c.thread_id === selectedThread);
   const currentMessages = selectedThread ? messages[selectedThread] || [] : [];
@@ -209,6 +210,12 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
                   </div>
                 </div>
               ))}
+              {conversations.length === 0 && (
+                <div className="p-4 text-center text-gray-500">
+                  <p>No conversations yet</p>
+                  <p className="text-sm">Start a new message to begin</p>
+                </div>
+              )}
             </div>
           </ScrollArea>
         </div>
@@ -229,32 +236,51 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
                 </div>
               </div>
               
-              <div className="flex-1 p-6">
+              <div className="flex-1 p-6 overflow-hidden">
                 <ScrollArea className="h-full pr-4">
                   <div className="space-y-4">
-                    {currentMessages.map((message) => {
-                      const sender = getUserById(message.sender_id);
-                      return (
-                        <div key={message.id} className="flex space-x-3">
-                          <Avatar className="w-8 h-8">
-                            <AvatarFallback>{sender?.initials || 'UN'}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 space-y-1">
-                            <div className="flex items-center space-x-2">
-                              <span className="font-medium text-sm">
-                                {sender?.full_name || 'Unknown User'}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                {new Date(message.created_at).toLocaleString()}
-                              </span>
+                    {currentMessages.length === 0 ? (
+                      <div className="text-center text-gray-500 py-8">
+                        <p>No messages yet</p>
+                        <p className="text-sm">Start the conversation below</p>
+                      </div>
+                    ) : (
+                      currentMessages.map((message) => {
+                        const sender = getUserById(message.sender_id);
+                        const isCurrentUser = message.sender_id === user?.id;
+                        return (
+                          <div key={message.id} className={`flex space-x-3 ${isCurrentUser ? 'justify-end' : ''}`}>
+                            {!isCurrentUser && (
+                              <Avatar className="w-8 h-8">
+                                <AvatarFallback>{sender?.initials || 'UN'}</AvatarFallback>
+                              </Avatar>
+                            )}
+                            <div className={`flex-1 space-y-1 max-w-xs ${isCurrentUser ? 'items-end' : ''}`}>
+                              <div className="flex items-center space-x-2">
+                                <span className="font-medium text-sm">
+                                  {isCurrentUser ? 'You' : (sender?.full_name || 'Unknown User')}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  {new Date(message.created_at).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className={`rounded-lg p-3 text-sm ${
+                                isCurrentUser 
+                                  ? 'bg-blue-500 text-white ml-auto' 
+                                  : 'bg-gray-50'
+                              }`}>
+                                {message.content}
+                              </div>
                             </div>
-                            <div className="bg-gray-50 rounded-lg p-3 text-sm">
-                              {message.content}
-                            </div>
+                            {isCurrentUser && (
+                              <Avatar className="w-8 h-8">
+                                <AvatarFallback>{sender?.initials || 'YU'}</AvatarFallback>
+                              </Avatar>
+                            )}
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })
+                    )}
                   </div>
                 </ScrollArea>
               </div>
@@ -281,7 +307,11 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center text-gray-500">
-              <p>Select a conversation to start messaging</p>
+              <div className="text-center">
+                <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p className="text-lg font-medium">Select a conversation to start messaging</p>
+                <p className="text-sm">Choose from your conversations on the left, or start a new message</p>
+              </div>
             </div>
           )}
         </div>

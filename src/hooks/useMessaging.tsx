@@ -35,12 +35,16 @@ export const useMessaging = () => {
     
     setLoading(true);
     try {
+      // Only fetch conversations where the current user is a participant
       const { data, error } = await supabase
         .from('conversations')
         .select('*')
-        .order('last_message_at', { ascending: false });
+        .contains('participants', [user.id])
+        .order('last_message_at', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
+      console.log('Fetched conversations for user:', user.id, data);
       setConversations(data || []);
     } catch (err) {
       console.error('Error fetching conversations:', err);
@@ -61,6 +65,7 @@ export const useMessaging = () => {
 
       if (error) throw error;
       
+      console.log('Fetched messages for thread:', threadId, data);
       setMessages(prev => ({
         ...prev,
         [threadId]: data || []
@@ -92,11 +97,11 @@ export const useMessaging = () => {
         .update({ last_message_at: new Date().toISOString() })
         .eq('thread_id', threadId);
 
-      // Refresh messages for this thread
+      // Refresh messages for this thread and conversations list
       await fetchMessages(threadId);
       await fetchConversations();
       
-      console.log('Message sent successfully');
+      console.log('Message sent successfully to thread:', threadId);
     } catch (err) {
       console.error('Error sending message:', err);
       throw err;
@@ -112,7 +117,10 @@ export const useMessaging = () => {
     if (!user) return null;
 
     try {
-      const threadId = `${threadType}_${Date.now()}_${Math.random().toString(36)}`;
+      const threadId = `${threadType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Ensure current user is included in participants
+      const allParticipants = [...new Set([...participants, user.id])];
       
       const { data, error } = await supabase
         .from('conversations')
@@ -121,13 +129,14 @@ export const useMessaging = () => {
           thread_type: threadType,
           title,
           workspace_id: workspaceId || null,
-          participants: [...participants, user.id]
+          participants: allParticipants
         })
         .select()
         .single();
 
       if (error) throw error;
 
+      console.log('Created conversation:', data);
       await fetchConversations();
       return data;
     } catch (err) {
@@ -135,6 +144,69 @@ export const useMessaging = () => {
       throw err;
     }
   };
+
+  // Subscribe to real-time updates for conversations
+  useEffect(() => {
+    if (!user) return;
+
+    const conversationsChannel = supabase
+      .channel('conversations-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversations',
+          filter: `participants.cs.{${user.id}}`
+        },
+        () => {
+          console.log('Conversation changed, refreshing...');
+          fetchConversations();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(conversationsChannel);
+    };
+  }, [user]);
+
+  // Subscribe to real-time updates for messages
+  useEffect(() => {
+    if (!user) return;
+
+    const messagesChannel = supabase
+      .channel('messages-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages'
+        },
+        (payload) => {
+          console.log('New message received:', payload);
+          const newMessage = payload.new as Message;
+          
+          // Update messages state
+          setMessages(prev => ({
+            ...prev,
+            [newMessage.thread_id]: [
+              ...(prev[newMessage.thread_id] || []),
+              newMessage
+            ]
+          }));
+          
+          // Refresh conversations to update last message time
+          fetchConversations();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(messagesChannel);
+    };
+  }, [user]);
 
   useEffect(() => {
     if (user) {
