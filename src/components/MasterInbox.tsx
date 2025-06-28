@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useMessaging } from '@/hooks/useMessaging';
 import { useUsers } from '@/hooks/useUsers';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUnifiedData } from '@/hooks/useUnifiedData';
 
 interface MasterInboxProps {
   userId: string;
@@ -24,6 +25,7 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
   const { user } = useAuth();
   const { users, loading: usersLoading } = useUsers();
   const { conversations, messages, sendMessage, createConversation, fetchMessages } = useMessaging();
+  const { workspaces, projects } = useUnifiedData();
   
   const [selectedThread, setSelectedThread] = useState('');
   const [newMessage, setNewMessage] = useState('');
@@ -34,8 +36,8 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
   const [selectedWorkspace, setSelectedWorkspace] = useState('');
   const [newMessageContent, setNewMessageContent] = useState('');
 
-  const workspaces = ['TechCorp Inc.', 'Fashion Forward', 'Green Energy Co.', 'Internal Projects'];
-  const projects = ['Q4 Social Media Campaign', 'Brand Identity Redesign', 'Website Launch Campaign'];
+  const workspaceNames = workspaces.map(w => w.name);
+  const projectTitles = projects.map(p => p.title);
 
   const getThreadIcon = (type: string) => {
     switch (type) {
@@ -365,9 +367,9 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
                       <SelectValue placeholder="Select workspace" />
                     </SelectTrigger>
                     <SelectContent>
-                      {workspaces.map((workspace) => (
-                        <SelectItem key={workspace} value={workspace}>
-                          {workspace}
+                      {workspaceNames.map((workspaceName) => (
+                        <SelectItem key={workspaceName} value={workspaceName}>
+                          {workspaceName}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -380,9 +382,9 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
                       <SelectValue placeholder="Select project" />
                     </SelectTrigger>
                     <SelectContent>
-                      {projects.map((project) => (
-                        <SelectItem key={project} value={project}>
-                          {project}
+                      {projectTitles.map((projectTitle) => (
+                        <SelectItem key={projectTitle} value={projectTitle}>
+                          {projectTitle}
                         </SelectItem>
                       ))}
                     </SelectContent>

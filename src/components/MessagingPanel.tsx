@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,7 @@ import { Send, Search, Plus, MessageSquare, Paperclip } from 'lucide-react';
 import { useMessaging } from '@/hooks/useMessaging';
 import { useUsers } from '@/hooks/useUsers';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUnifiedData } from '@/hooks/useUnifiedData';
 
 interface MessagingPanelProps {
   workspaceId: string;
@@ -21,19 +21,13 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
   const { user } = useAuth();
   const { users } = useUsers();
   const { conversations, messages, sendMessage, createConversation, fetchMessages, getProjectThreadId } = useMessaging();
+  const { getWorkspace, mapWorkspaceIdToName } = useUnifiedData();
   const [selectedConversation, setSelectedConversation] = useState('');
   const [newMessage, setNewMessage] = useState('');
 
-  // Map workspace IDs to their names for matching
-  const workspaceNames = {
-    'client-1': 'TechCorp Inc.',
-    'client-2': 'Fashion Forward',
-    'client-3': 'Green Energy Co.',
-    'internal': 'Internal Projects'
-  };
-
-  // Get workspace name for current workspace ID
-  const currentWorkspaceName = workspaceNames[workspaceId];
+  // Get current workspace info using unified data
+  const currentWorkspace = getWorkspace(workspaceId);
+  const currentWorkspaceName = currentWorkspace?.name || mapWorkspaceIdToName(workspaceId);
 
   // Filter conversations for current workspace - include ALL project conversations for this workspace
   const workspaceConversations = conversations.filter(c => {

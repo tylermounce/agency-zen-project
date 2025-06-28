@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Search, Filter, Plus, Calendar, User, X, ChevronDown, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { TaskDetail } from '@/components/TaskDetail';
+import { useUnifiedData } from '@/hooks/useUnifiedData';
+import { Task } from '@/types';
 
 interface TaskListProps {
   workspaceId: string;
@@ -18,13 +20,14 @@ interface TaskListProps {
 }
 
 export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: TaskListProps) => {
+  const { getWorkspaceTasks, getWorkspaceProjects, getUser, getProject, updateTask } = useUnifiedData();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterProject, setFilterProject] = useState('all');
   const [filterAssignee, setFilterAssignee] = useState('all');
   const [showCompleted, setShowCompleted] = useState(false);
-  const [selectedTask, setSelectedTask] = useState(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
   
   // Collapsible sections state
@@ -33,53 +36,11 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
   const [upcomingOpen, setUpcomingOpen] = useState(true);
   const [completedOpen, setCompletedOpen] = useState(false);
 
-  const [tasks, setTasks] = useState([
-    {
-      id: '1',
-      title: 'Design Instagram post templates',
-      project: 'Q4 Social Media Campaign',
-      status: 'todo',
-      priority: 'high',
-      assignee: 'JD',
-      dueDate: '2024-07-05', // Overdue
-      completed: false,
-      workspace: 'TechCorp Inc.',
-      notes: 'Need to create 5 different templates following brand guidelines.'
-    },
-    {
-      id: '2',
-      title: 'Write blog post copy',
-      project: 'Website Launch Campaign',
-      status: 'in-progress',
-      priority: 'medium',
-      assignee: 'SM',
-      dueDate: new Date().toISOString().split('T')[0], // Today
-      completed: false
-    },
-    {
-      id: '3',
-      title: 'Review brand guidelines',
-      project: 'Brand Identity Redesign',
-      status: 'review',
-      priority: 'low',
-      assignee: 'AM',
-      dueDate: '2024-07-15', // Future
-      completed: false
-    },
-    {
-      id: '4',
-      title: 'Export final logo files',
-      project: 'Brand Identity Redesign',
-      status: 'done',
-      priority: 'medium',
-      assignee: 'RK',
-      dueDate: '2024-07-05',
-      completed: true
-    }
-  ]);
-
-  const projects = ['Q4 Social Media Campaign', 'Website Launch Campaign', 'Brand Identity Redesign'];
-  const assignees = ['JD', 'SM', 'AM', 'RK', 'KL', 'TW'];
+  // Get workspace tasks and projects using unified data
+  const workspaceTasks = getWorkspaceTasks(workspaceId);
+  const workspaceProjects = getWorkspaceProjects(workspaceId);
+  const projectNames = workspaceProjects.map(p => p.title);
+  const assigneeIds = [...new Set(workspaceTasks.map(t => t.assignee_id))];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -100,79 +61,83 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
     }
   };
 
-  const handleTaskClick = (task) => {
+  const handleTaskClick = (task: Task) => {
     setSelectedTask(task);
     setIsTaskDetailOpen(true);
   };
 
-  const handleTaskSave = (updatedTask) => {
-    setTasks(currentTasks => 
-      currentTasks.map(task => 
-        task.id === updatedTask.id ? updatedTask : task
-      )
-    );
+  const handleTaskSave = (updatedTask: Task) => {
+    updateTask(updatedTask.id, updatedTask);
     console.log('Task updated:', updatedTask);
   };
 
   // Filter tasks
-  const filteredTasks = tasks.filter(task => {
+  const filteredTasks = workspaceTasks.filter(task => {
     if (!showCompleted && task.completed) return false;
     
+    const project = getProject(task.project_id);
+    const projectTitle = project?.title || '';
+    
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.project.toLowerCase().includes(searchTerm.toLowerCase());
+                         projectTitle.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
     const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
-    const matchesProject = (filterProject === 'all' || task.project === filterProject) && 
-                          (!projectFilter || task.project === projectFilter);
-    const matchesAssignee = filterAssignee === 'all' || task.assignee === filterAssignee;
+    const matchesProject = (filterProject === 'all' || projectTitle === filterProject) && 
+                          (!projectFilter || projectTitle === projectFilter);
+    const matchesAssignee = filterAssignee === 'all' || task.assignee_id === filterAssignee;
     
     return matchesSearch && matchesStatus && matchesPriority && matchesProject && matchesAssignee;
   });
 
   // Group tasks by date
   const today = new Date().toISOString().split('T')[0];
-  const overdueTasks = filteredTasks.filter(task => !task.completed && task.dueDate < today);
-  const todayTasks = filteredTasks.filter(task => !task.completed && task.dueDate === today);
-  const upcomingTasks = filteredTasks.filter(task => !task.completed && task.dueDate > today);
+  const overdueTasks = filteredTasks.filter(task => !task.completed && task.due_date < today);
+  const todayTasks = filteredTasks.filter(task => !task.completed && task.due_date === today);
+  const upcomingTasks = filteredTasks.filter(task => !task.completed && task.due_date > today);
   const completedTasks = filteredTasks.filter(task => task.completed);
 
-  const TaskItem = ({ task }) => (
-    <div 
-      className="flex items-center space-x-4 p-3 rounded-lg border hover:bg-gray-50 transition-colors cursor-pointer"
-      onClick={() => handleTaskClick(task)}
-    >
-      <Checkbox
-        checked={task.completed}
-        className="mt-1"
-        onClick={(e) => e.stopPropagation()}
-      />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center space-x-2 mb-1">
-          <h4 className={`font-medium ${task.completed ? 'line-through text-gray-500' : ''}`}>
-            {task.title}
-          </h4>
-          <Badge className={getStatusColor(task.status)} variant="secondary">
-            {task.status.replace('-', ' ')}
-          </Badge>
-          <Badge className={getPriorityColor(task.priority)} variant="outline">
-            {task.priority}
-          </Badge>
-        </div>
-        <div className="flex items-center space-x-4 text-sm text-gray-600">
-          <span className="truncate">{task.project}</span>
-          <div className="flex items-center space-x-1">
-            <Calendar className="w-3 h-3" />
-            <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+  const TaskItem = ({ task }: { task: Task }) => {
+    const project = getProject(task.project_id);
+    const assignee = getUser(task.assignee_id);
+    
+    return (
+      <div 
+        className="flex items-center space-x-4 p-3 rounded-lg border hover:bg-gray-50 transition-colors cursor-pointer"
+        onClick={() => handleTaskClick(task)}
+      >
+        <Checkbox
+          checked={task.completed}
+          className="mt-1"
+          onClick={(e) => e.stopPropagation()}
+        />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center space-x-2 mb-1">
+            <h4 className={`font-medium ${task.completed ? 'line-through text-gray-500' : ''}`}>
+              {task.title}
+            </h4>
+            <Badge className={getStatusColor(task.status)} variant="secondary">
+              {task.status.replace('-', ' ')}
+            </Badge>
+            <Badge className={getPriorityColor(task.priority)} variant="outline">
+              {task.priority}
+            </Badge>
+          </div>
+          <div className="flex items-center space-x-4 text-sm text-gray-600">
+            <span className="truncate">{project?.title || 'Unknown Project'}</span>
+            <div className="flex items-center space-x-1">
+              <Calendar className="w-3 h-3" />
+              <span>{new Date(task.due_date).toLocaleDateString()}</span>
+            </div>
           </div>
         </div>
+        <div className="flex items-center space-x-2">
+          <Avatar className="w-6 h-6">
+            <AvatarFallback className="text-xs">{assignee?.initials || 'UN'}</AvatarFallback>
+          </Avatar>
+        </div>
       </div>
-      <div className="flex items-center space-x-2">
-        <Avatar className="w-6 h-6">
-          <AvatarFallback className="text-xs">{task.assignee}</AvatarFallback>
-        </Avatar>
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -238,9 +203,9 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Projects</SelectItem>
-                {projects.map((project) => (
-                  <SelectItem key={project} value={project}>
-                    {project}
+                {projectNames.map((projectName) => (
+                  <SelectItem key={projectName} value={projectName}>
+                    {projectName}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -262,11 +227,14 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Assignees</SelectItem>
-                {assignees.map((assignee) => (
-                  <SelectItem key={assignee} value={assignee}>
-                    {assignee}
-                  </SelectItem>
-                ))}
+                {assigneeIds.map((assigneeId) => {
+                  const user = getUser(assigneeId);
+                  return (
+                    <SelectItem key={assigneeId} value={assigneeId}>
+                      {user?.full_name || user?.initials || 'Unknown User'}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
             <Button>

@@ -15,9 +15,11 @@ import { MyTasks } from '@/components/MyTasks';
 import { ChannelDiscussion } from '@/components/ChannelDiscussion';
 import { MasterInbox } from '@/components/MasterInbox';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUnifiedData } from '@/hooks/useUnifiedData';
 
 const Index = () => {
   const { user, signOut } = useAuth();
+  const { workspaces, getWorkspaceTaskCounts } = useUnifiedData();
   const [selectedWorkspace, setSelectedWorkspace] = useState('client-1');
   const [activeTab, setActiveTab] = useState('channel');
   const [showMyTasks, setShowMyTasks] = useState(false);
@@ -25,23 +27,25 @@ const Index = () => {
   const [projectFilter, setProjectFilter] = useState('');
   const [selectedProjectThread, setSelectedProjectThread] = useState('');
 
-  const workspaces = [
-    { id: 'client-1', name: 'TechCorp Inc.', color: 'bg-blue-500', tasks: 24 },
-    { id: 'client-2', name: 'Fashion Forward', color: 'bg-purple-500', tasks: 18 },
-    { id: 'client-3', name: 'Green Energy Co.', color: 'bg-green-500', tasks: 32 },
-    { id: 'internal', name: 'Internal Projects', color: 'bg-orange-500', tasks: 12 }
-  ];
+  // Get task counts using unified data
+  const taskCounts = getWorkspaceTaskCounts;
+  
+  // Map workspaces with updated task counts
+  const workspacesWithCounts = workspaces.map(workspace => ({
+    ...workspace,
+    tasks: taskCounts[workspace.id]?.active || 0
+  }));
 
-  const currentWorkspace = workspaces.find(w => w.id === selectedWorkspace);
+  const currentWorkspace = workspacesWithCounts.find(w => w.id === selectedWorkspace);
 
-  const handleProjectClick = (projectId, projectTitle) => {
+  const handleProjectClick = (projectId: string, projectTitle: string) => {
     setProjectFilter(projectTitle);
     setActiveTab('tasks');
     console.log(`Filtering tasks for project: ${projectTitle}`);
   };
 
-  const handleProjectMessageClick = (projectId, projectTitle) => {
-    setSelectedProjectThread(projectId);
+  const handleProjectMessageClick = (projectId: string, projectTitle: string) => {
+    setSelectedProjectThread(projectTitle); // Use project title for thread identification
     setActiveTab('messages');
     console.log(`Opening message thread for project: ${projectTitle}`);
   };
@@ -98,7 +102,7 @@ const Index = () => {
           <div className="flex items-center space-x-4">
             <h1 className="text-2xl font-semibold text-gray-900">Agency Ops</h1>
             <WorkspaceSelector 
-              workspaces={workspaces}
+              workspaces={workspacesWithCounts}
               selectedWorkspace={selectedWorkspace}
               onWorkspaceChange={setSelectedWorkspace}
             />
