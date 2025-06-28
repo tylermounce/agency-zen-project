@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -289,7 +289,7 @@ export const MyTasks = () => {
                       <Checkbox
                         id="personal-task"
                         checked={isPersonalTask}
-                        onCheckedChange={setIsPersonalTask}
+                        onCheckedChange={(checked) => setIsPersonalTask(checked === true)}
                       />
                       <label htmlFor="personal-task" className="text-sm font-medium">
                         Personal Task (not attached to workspace/project)
