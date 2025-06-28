@@ -122,6 +122,7 @@ export const useMessaging = () => {
         .maybeSingle();
 
       if (error) throw error;
+      console.log('findExistingProjectConversation result:', data);
       return data;
     } catch (err) {
       console.error('Error finding existing project conversation:', err);
@@ -176,11 +177,16 @@ export const useMessaging = () => {
   };
 
   const getProjectThreadId = (projectTitle: string, workspaceId?: string) => {
+    console.log('getProjectThreadId - looking for:', { projectTitle, workspaceId });
+    console.log('getProjectThreadId - available conversations:', conversations);
+    
     const projectConversation = conversations.find(
       c => c.thread_type === 'project' && 
            c.title === projectTitle && 
            c.workspace_id === workspaceId
     );
+    
+    console.log('getProjectThreadId - found conversation:', projectConversation);
     return projectConversation?.thread_id;
   };
 

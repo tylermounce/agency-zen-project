@@ -24,16 +24,23 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
   const [selectedConversation, setSelectedConversation] = useState('');
   const [newMessage, setNewMessage] = useState('');
 
-  // Filter conversations for current workspace and project type
-  const workspaceConversations = conversations.filter(
-    c => c.workspace_id === workspaceId && c.thread_type === 'project'
-  );
+  // Filter conversations for current workspace - include ALL project conversations for this workspace
+  const workspaceConversations = conversations.filter(c => {
+    // Include project conversations that belong to this workspace
+    return c.thread_type === 'project' && c.workspace_id === workspaceId;
+  });
+
+  console.log('MessagingPanel - workspaceId:', workspaceId);
+  console.log('MessagingPanel - all conversations:', conversations);
+  console.log('MessagingPanel - filtered workspace conversations:', workspaceConversations);
 
   // Auto-select the project thread if provided
   useEffect(() => {
     if (selectedProjectThread) {
+      console.log('MessagingPanel - selectedProjectThread provided:', selectedProjectThread);
       // Find existing conversation for this project
       const existingThreadId = getProjectThreadId(selectedProjectThread, workspaceId);
+      console.log('MessagingPanel - found existing thread ID:', existingThreadId);
       if (existingThreadId) {
         setSelectedConversation(existingThreadId);
         fetchMessages(existingThreadId);
@@ -65,6 +72,7 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
   };
 
   const handleConversationSelect = (threadId: string) => {
+    console.log('MessagingPanel - selecting conversation:', threadId);
     setSelectedConversation(threadId);
     fetchMessages(threadId);
   };
