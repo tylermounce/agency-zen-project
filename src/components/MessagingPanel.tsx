@@ -24,13 +24,26 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
   const [selectedConversation, setSelectedConversation] = useState('');
   const [newMessage, setNewMessage] = useState('');
 
+  // Map workspace IDs to their names for matching
+  const workspaceNames = {
+    'client-1': 'TechCorp Inc.',
+    'client-2': 'Fashion Forward',
+    'client-3': 'Green Energy Co.',
+    'internal': 'Internal Projects'
+  };
+
+  // Get workspace name for current workspace ID
+  const currentWorkspaceName = workspaceNames[workspaceId];
+
   // Filter conversations for current workspace - include ALL project conversations for this workspace
   const workspaceConversations = conversations.filter(c => {
-    // Include project conversations that belong to this workspace
-    return c.thread_type === 'project' && c.workspace_id === workspaceId;
+    console.log('Checking conversation:', c.title, 'workspace_id:', c.workspace_id, 'vs current:', currentWorkspaceName);
+    // Include project conversations that belong to this workspace (by name)
+    return c.thread_type === 'project' && c.workspace_id === currentWorkspaceName;
   });
 
   console.log('MessagingPanel - workspaceId:', workspaceId);
+  console.log('MessagingPanel - currentWorkspaceName:', currentWorkspaceName);
   console.log('MessagingPanel - all conversations:', conversations);
   console.log('MessagingPanel - filtered workspace conversations:', workspaceConversations);
 
@@ -39,14 +52,14 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
     if (selectedProjectThread) {
       console.log('MessagingPanel - selectedProjectThread provided:', selectedProjectThread);
       // Find existing conversation for this project
-      const existingThreadId = getProjectThreadId(selectedProjectThread, workspaceId);
+      const existingThreadId = getProjectThreadId(selectedProjectThread, currentWorkspaceName);
       console.log('MessagingPanel - found existing thread ID:', existingThreadId);
       if (existingThreadId) {
         setSelectedConversation(existingThreadId);
         fetchMessages(existingThreadId);
       }
     }
-  }, [selectedProjectThread, workspaceId, getProjectThreadId, fetchMessages]);
+  }, [selectedProjectThread, currentWorkspaceName, getProjectThreadId, fetchMessages]);
 
   const getUserById = (userId: string) => {
     return users.find(u => u.id === userId);
