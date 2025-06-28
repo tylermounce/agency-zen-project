@@ -7,19 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Calendar, User, Flag, CheckSquare, FileText, Save, X } from 'lucide-react';
-
-interface Task {
-  id: string;
-  title: string;
-  project: string;
-  workspace: string;
-  status: string;
-  priority: string;
-  assignee: string;
-  dueDate: string;
-  completed: boolean;
-  notes?: string;
-}
+import { Task } from '@/types';
+import { useUnifiedData } from '@/hooks/useUnifiedData';
 
 interface TaskDetailProps {
   task: Task | null;
@@ -29,12 +18,13 @@ interface TaskDetailProps {
 }
 
 export const TaskDetail = ({ task, open, onOpenChange, onSave }: TaskDetailProps) => {
+  const { getProject, getWorkspace, users } = useUnifiedData();
   const [editedTask, setEditedTask] = useState<Task | null>(null);
 
   // Initialize edited task when dialog opens
   React.useEffect(() => {
     if (task && open) {
-      setEditedTask({ ...task, notes: task.notes || '' });
+      setEditedTask({ ...task });
     }
   }, [task, open]);
 
@@ -45,7 +35,9 @@ export const TaskDetail = ({ task, open, onOpenChange, onSave }: TaskDetailProps
     onOpenChange(false);
   };
 
-  const teamMembers = ['JD', 'SM', 'AM', 'RK', 'KL', 'TW'];
+  // Get project and workspace info for display
+  const project = getProject(task.project_id);
+  const workspace = getWorkspace(task.workspace_id);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -73,11 +65,11 @@ export const TaskDetail = ({ task, open, onOpenChange, onSave }: TaskDetailProps
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Project</Label>
-              <Input value={editedTask.project} readOnly className="bg-gray-50" />
+              <Input value={project?.title || 'Unknown Project'} readOnly className="bg-gray-50" />
             </div>
             <div className="space-y-2">
               <Label>Workspace</Label>
-              <Input value={editedTask.workspace} readOnly className="bg-gray-50" />
+              <Input value={workspace?.name || 'Unknown Workspace'} readOnly className="bg-gray-50" />
             </div>
           </div>
 
@@ -89,16 +81,16 @@ export const TaskDetail = ({ task, open, onOpenChange, onSave }: TaskDetailProps
                 <span>Assigned To</span>
               </Label>
               <Select
-                value={editedTask.assignee}
-                onValueChange={(value) => setEditedTask({...editedTask, assignee: value})}
+                value={editedTask.assignee_id}
+                onValueChange={(value) => setEditedTask({...editedTask, assignee_id: value})}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {teamMembers.map((member) => (
-                    <SelectItem key={member} value={member}>
-                      {member}
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.full_name} ({user.initials})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -111,8 +103,8 @@ export const TaskDetail = ({ task, open, onOpenChange, onSave }: TaskDetailProps
               </Label>
               <Input
                 type="date"
-                value={editedTask.dueDate}
-                onChange={(e) => setEditedTask({...editedTask, dueDate: e.target.value})}
+                value={editedTask.due_date}
+                onChange={(e) => setEditedTask({...editedTask, due_date: e.target.value})}
               />
             </div>
           </div>
@@ -126,7 +118,7 @@ export const TaskDetail = ({ task, open, onOpenChange, onSave }: TaskDetailProps
               </Label>
               <Select
                 value={editedTask.priority}
-                onValueChange={(value) => setEditedTask({...editedTask, priority: value})}
+                onValueChange={(value: 'low' | 'medium' | 'high') => setEditedTask({...editedTask, priority: value})}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -142,7 +134,7 @@ export const TaskDetail = ({ task, open, onOpenChange, onSave }: TaskDetailProps
               <Label>Status</Label>
               <Select
                 value={editedTask.status}
-                onValueChange={(value) => setEditedTask({...editedTask, status: value})}
+                onValueChange={(value: 'todo' | 'in-progress' | 'review' | 'done') => setEditedTask({...editedTask, status: value})}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -165,8 +157,8 @@ export const TaskDetail = ({ task, open, onOpenChange, onSave }: TaskDetailProps
             </Label>
             <Textarea
               placeholder="Add notes about this task..."
-              value={editedTask.notes || ''}
-              onChange={(e) => setEditedTask({...editedTask, notes: e.target.value})}
+              value={editedTask.description || ''}
+              onChange={(e) => setEditedTask({...editedTask, description: e.target.value})}
               rows={4}
             />
           </div>
