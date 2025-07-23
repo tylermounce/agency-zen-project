@@ -17,6 +17,8 @@ export const useUnifiedData = () => {
     createTask,
     updateTask,
     updateProject,
+    updateWorkspace,
+    deleteWorkspace,
     refetch
   } = useSupabaseData();
 
@@ -116,6 +118,8 @@ export const useUnifiedData = () => {
     createProject,
     createTask,
     updateProject,
+    updateWorkspace,
+    deleteWorkspace,
     refetch,
     
     // Mapping helpers

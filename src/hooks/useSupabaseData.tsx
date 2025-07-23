@@ -147,6 +147,43 @@ export const useSupabaseData = () => {
     }
   };
 
+  // Update workspace
+  const updateWorkspace = async (workspaceId: string, updates: Partial<Workspace>) => {
+    try {
+      const { data, error } = await supabase
+        .from('workspaces')
+        .update(updates)
+        .eq('id', workspaceId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setWorkspaces(prev => prev.map(workspace => workspace.id === workspaceId ? data : workspace));
+      return data;
+    } catch (err) {
+      console.error('Error updating workspace:', err);
+      throw err;
+    }
+  };
+
+  // Delete workspace
+  const deleteWorkspace = async (workspaceId: string) => {
+    try {
+      const { error } = await supabase
+        .from('workspaces')
+        .delete()
+        .eq('id', workspaceId);
+
+      if (error) throw error;
+      
+      setWorkspaces(prev => prev.filter(workspace => workspace.id !== workspaceId));
+    } catch (err) {
+      console.error('Error deleting workspace:', err);
+      throw err;
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -162,6 +199,8 @@ export const useSupabaseData = () => {
     createTask,
     updateTask,
     updateProject,
+    updateWorkspace,
+    deleteWorkspace,
     refetch: fetchData
   };
 };

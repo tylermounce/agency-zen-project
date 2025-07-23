@@ -14,7 +14,7 @@ import { useUnifiedData } from '@/hooks/useUnifiedData';
 import { useToast } from '@/hooks/use-toast';
 
 export const WorkspaceSettings = () => {
-  const { workspaces, createWorkspace, getWorkspaceTaskCounts } = useUnifiedData();
+  const { workspaces, createWorkspace, updateWorkspace, deleteWorkspace, getWorkspaceTaskCounts } = useUnifiedData();
   const { toast } = useToast();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingWorkspace, setEditingWorkspace] = useState(null);
@@ -71,15 +71,29 @@ export const WorkspaceSettings = () => {
 
   const handleUpdateWorkspace = async () => {
     if (!editingWorkspace) return;
+    if (!newWorkspace.name.trim()) {
+      toast({
+        title: "Error",
+        description: "Workspace name is required.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
-      // Note: This would require an updateWorkspace function in useUnifiedData
-      // For now, we'll show a message
-      toast({
-        title: "Update workspace",
-        description: "Workspace update functionality coming soon.",
+      await updateWorkspace(editingWorkspace.id, {
+        name: newWorkspace.name,
+        description: newWorkspace.description,
+        color: newWorkspace.color
       });
+
       setEditingWorkspace(null);
+      setNewWorkspace({ name: '', description: '', color: '#3B82F6' });
+      
+      toast({
+        title: "Workspace updated",
+        description: `${newWorkspace.name} has been updated successfully.`,
+      });
     } catch (error) {
       console.error('Error updating workspace:', error);
       toast({
@@ -92,10 +106,11 @@ export const WorkspaceSettings = () => {
 
   const handleDeleteWorkspace = async (workspaceId: string, workspaceName: string) => {
     try {
-      // Note: This would require a deleteWorkspace function in useUnifiedData
+      await deleteWorkspace(workspaceId);
+      
       toast({
-        title: "Delete workspace",
-        description: "Workspace deletion functionality coming soon.",
+        title: "Workspace deleted",
+        description: `${workspaceName} has been deleted successfully.`,
       });
     } catch (error) {
       console.error('Error deleting workspace:', error);
