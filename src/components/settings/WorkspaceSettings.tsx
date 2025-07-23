@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,15 +9,19 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Plus, MoreHorizontal, Building, Edit, Trash2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, MoreHorizontal, Building, Edit, Trash2, Users, X } from 'lucide-react';
 import { useUnifiedData } from '@/hooks/useUnifiedData';
+import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useToast } from '@/hooks/use-toast';
 
 export const WorkspaceSettings = () => {
-  const { workspaces, createWorkspace, updateWorkspace, deleteWorkspace, getWorkspaceTaskCounts } = useUnifiedData();
+  const { workspaces, createWorkspace, updateWorkspace, deleteWorkspace, getWorkspaceTaskCounts, users } = useUnifiedData();
+  const { addWorkspaceMember, removeWorkspaceMember, getWorkspaceMembers } = useWorkspaceMembers();
   const { toast } = useToast();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingWorkspace, setEditingWorkspace] = useState(null);
+  const [managingMembers, setManagingMembers] = useState(null);
   const [newWorkspace, setNewWorkspace] = useState({
     name: '',
     description: '',
@@ -117,6 +121,40 @@ export const WorkspaceSettings = () => {
       toast({
         title: "Error",
         description: "Failed to delete workspace.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAddMember = async (workspaceId: string, userId: string) => {
+    try {
+      await addWorkspaceMember(workspaceId, userId);
+      toast({
+        title: "Member added",
+        description: "User has been added to the workspace.",
+      });
+    } catch (error) {
+      console.error('Error adding member:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add member. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRemoveMember = async (workspaceId: string, userId: string) => {
+    try {
+      await removeWorkspaceMember(workspaceId, userId);
+      toast({
+        title: "Member removed",
+        description: "User has been removed from the workspace.",
+      });
+    } catch (error) {
+      console.error('Error removing member:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove member. Please try again.",
         variant: "destructive",
       });
     }
@@ -240,6 +278,10 @@ export const WorkspaceSettings = () => {
                               <Edit className="w-4 h-4 mr-2" />
                               Edit
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setManagingMembers(workspace)}>
+                              <Users className="w-4 h-4 mr-2" />
+                              Manage Members
+                            </DropdownMenuItem>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
@@ -320,6 +362,115 @@ export const WorkspaceSettings = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Manage Members Dialog */}
+      <Dialog open={!!managingMembers} onOpenChange={() => setManagingMembers(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Manage Members - {managingMembers?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            {managingMembers && (
+              <WorkspaceMemberManager
+                workspace={managingMembers}
+                users={users}
+                onAddMember={handleAddMember}
+                onRemoveMember={handleRemoveMember}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+const WorkspaceMemberManager = ({ workspace, users, onAddMember, onRemoveMember }) => {
+  const { getWorkspaceMembers } = useWorkspaceMembers();
+  const [members, setMembers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState('');
+
+  useEffect(() => {
+    const loadMembers = async () => {
+      const workspaceMembers = await getWorkspaceMembers(workspace.id);
+      setMembers(workspaceMembers);
+    };
+    loadMembers();
+  }, [workspace.id, getWorkspaceMembers]);
+
+  const handleAddMember = async () => {
+    if (!selectedUser) return;
+    await onAddMember(workspace.id, selectedUser);
+    setSelectedUser('');
+    // Reload members
+    const workspaceMembers = await getWorkspaceMembers(workspace.id);
+    setMembers(workspaceMembers);
+  };
+
+  const handleRemoveMember = async (userId) => {
+    await onRemoveMember(workspace.id, userId);
+    // Reload members
+    const workspaceMembers = await getWorkspaceMembers(workspace.id);
+    setMembers(workspaceMembers);
+  };
+
+  const availableUsers = users.filter(user => 
+    !members.some(member => member.user_id === user.id)
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex space-x-2">
+        <Select value={selectedUser} onValueChange={setSelectedUser}>
+          <SelectTrigger className="flex-1">
+            <SelectValue placeholder="Select a user to add" />
+          </SelectTrigger>
+          <SelectContent>
+            {availableUsers.map(user => (
+              <SelectItem key={user.id} value={user.id}>
+                {user.full_name} ({user.email})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button onClick={handleAddMember} disabled={!selectedUser}>
+          Add Member
+        </Button>
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="font-medium">Current Members ({members.length})</h4>
+        {members.length === 0 ? (
+          <p className="text-gray-500 text-sm">No members assigned to this workspace.</p>
+        ) : (
+          <div className="space-y-2">
+            {members.map(member => {
+              const user = users.find(u => u.id === member.user_id);
+              return (
+                <div key={member.id} className="flex items-center justify-between p-2 border rounded">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm">
+                      {user?.initials || 'UN'}
+                    </div>
+                    <div>
+                      <div className="font-medium">{user?.full_name || 'Unknown User'}</div>
+                      <div className="text-sm text-gray-500">{user?.email}</div>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemoveMember(member.user_id)}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
