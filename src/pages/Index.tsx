@@ -9,17 +9,19 @@ import { Plus, Users, MessageSquare, Calendar, CheckSquare, User, Hash, Inbox, L
 import { ProjectBoard } from '@/components/ProjectBoard';
 import { TaskList } from '@/components/TaskList';
 import { MessagingPanel } from '@/components/MessagingPanel';
-import { WorkspaceSelector } from '@/components/WorkspaceSelector';
+import { RoleBasedWorkspaceSelector as WorkspaceSelector } from '@/components/RoleBasedWorkspaceSelector';
 import { ProjectTemplates } from '@/components/ProjectTemplates';
 import { MyTasks } from '@/components/MyTasks';
 import { ChannelDiscussion } from '@/components/ChannelDiscussion';
 import { MasterInbox } from '@/components/MasterInbox';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUnifiedData } from '@/hooks/useUnifiedData';
+import { useUserRole } from '@/hooks/useUserRole';
 
 const Index = () => {
   const { user, signOut } = useAuth();
   const { workspaces, getWorkspaceTaskCounts } = useUnifiedData();
+  const { isAdmin } = useUserRole();
   const [selectedWorkspace, setSelectedWorkspace] = useState('client-1');
   const [activeTab, setActiveTab] = useState('channel');
   const [showMyTasks, setShowMyTasks] = useState(false);
@@ -135,25 +137,29 @@ const Index = () => {
             <h2 className="text-lg font-medium text-gray-900">{currentWorkspace?.name}</h2>
             <Badge variant="secondary">{currentWorkspace?.tasks} active tasks</Badge>
           </div>
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            New Project
-          </Button>
+          {isAdmin && (
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              New Project
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Main Content */}
       <div className="px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:w-120">
+          <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-5' : 'grid-cols-3'} lg:w-120`}>
             <TabsTrigger value="channel" className="flex items-center">
               <Hash className="w-4 h-4 mr-2" />
               Channel
             </TabsTrigger>
-            <TabsTrigger value="projects" className="flex items-center">
-              <CheckSquare className="w-4 h-4 mr-2" />
-              Projects
-            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="projects" className="flex items-center">
+                <CheckSquare className="w-4 h-4 mr-2" />
+                Projects
+              </TabsTrigger>
+            )}
             <TabsTrigger value="tasks" className="flex items-center">
               <Calendar className="w-4 h-4 mr-2" />
               Tasks
@@ -162,23 +168,27 @@ const Index = () => {
               <MessageSquare className="w-4 h-4 mr-2" />
               Messages
             </TabsTrigger>
-            <TabsTrigger value="templates" className="flex items-center">
-              <Plus className="w-4 h-4 mr-2" />
-              Templates
-            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="templates" className="flex items-center">
+                <Plus className="w-4 h-4 mr-2" />
+                Templates
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="channel" className="space-y-6">
             <ChannelDiscussion workspaceId={selectedWorkspace} />
           </TabsContent>
 
-          <TabsContent value="projects" className="space-y-6">
-            <ProjectBoard 
-              workspaceId={selectedWorkspace}
-              onProjectClick={handleProjectClick}
-              onProjectMessageClick={handleProjectMessageClick}
-            />
-          </TabsContent>
+          {isAdmin && (
+            <TabsContent value="projects" className="space-y-6">
+              <ProjectBoard 
+                workspaceId={selectedWorkspace}
+                onProjectClick={handleProjectClick}
+                onProjectMessageClick={handleProjectMessageClick}
+              />
+            </TabsContent>
+          )}
 
           <TabsContent value="tasks" className="space-y-6">
             <TaskList 
@@ -195,9 +205,11 @@ const Index = () => {
             />
           </TabsContent>
 
-          <TabsContent value="templates" className="space-y-6">
-            <ProjectTemplates />
-          </TabsContent>
+          {isAdmin && (
+            <TabsContent value="templates" className="space-y-6">
+              <ProjectTemplates />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>
