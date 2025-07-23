@@ -18,6 +18,7 @@ interface UserWithRole {
   created_at: string;
   last_sign_in_at: string;
   role: 'admin' | 'user' | null;
+  allRoles: ('admin' | 'user')[];
 }
 
 export const UserManagement = () => {
@@ -31,29 +32,41 @@ export const UserManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch all users from profiles table with their roles
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select(`
           id,
           email,
           full_name,
-          created_at,
-          user_roles (
-            role
-          )
+          created_at
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (profilesError) throw profilesError;
 
-      const usersWithRoles = data.map(user => ({
-        id: user.id,
-        email: user.email || '',
-        full_name: user.full_name || user.email || '',
-        created_at: user.created_at,
-        last_sign_in_at: '',
-        role: (user.user_roles as any)?.[0]?.role || null
-      }));
+      // Fetch all user roles
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+
+      if (rolesError) throw rolesError;
+
+      // Combine the data
+      const usersWithRoles = profilesData.map(user => {
+        const userRoles = rolesData.filter(role => role.user_id === user.id);
+        const primaryRole = userRoles.find(role => role.role === 'admin') || userRoles[0];
+        
+        return {
+          id: user.id,
+          email: user.email || '',
+          full_name: user.full_name || user.email || '',
+          created_at: user.created_at,
+          last_sign_in_at: '',
+          role: primaryRole?.role || null,
+          allRoles: userRoles.map(role => role.role)
+        };
+      });
 
       setUsers(usersWithRoles);
     } catch (error) {
@@ -68,35 +81,71 @@ export const UserManagement = () => {
     }
   };
 
-  const updateUserRole = async (userId: string, newRole: 'admin' | 'user') => {
+  const addUserRole = async (userId: string, newRole: 'admin' | 'user') => {
     try {
-      // First, delete existing role
-      await supabase
+      // Check if role already exists
+      const { data: existingRole } = await supabase
         .from('user_roles')
-        .delete()
-        .eq('user_id', userId);
+        .select('id')
+        .eq('user_id', userId)
+        .eq('role', newRole)
+        .single();
 
-      // Then insert new role
+      if (existingRole) {
+        toast({
+          title: "Role already exists",
+          description: `User already has the ${newRole} role.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Insert new role
       const { error } = await supabase
         .from('user_roles')
         .insert({ user_id: userId, role: newRole });
 
       if (error) throw error;
 
-      // Update local state
-      setUsers(users.map(user => 
-        user.id === userId ? { ...user, role: newRole } : user
-      ));
+      // Refresh users
+      await fetchUsers();
 
       toast({
-        title: "Role updated",
-        description: `User role has been changed to ${newRole}.`,
+        title: "Role added",
+        description: `${newRole.charAt(0).toUpperCase() + newRole.slice(1)} role has been added.`,
       });
     } catch (error) {
-      console.error('Error updating user role:', error);
+      console.error('Error adding user role:', error);
       toast({
         title: "Error",
-        description: "Failed to update user role.",
+        description: "Failed to add user role.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const removeSpecificRole = async (userId: string, roleToRemove: 'admin' | 'user') => {
+    try {
+      const { error } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId)
+        .eq('role', roleToRemove);
+
+      if (error) throw error;
+
+      // Refresh users
+      await fetchUsers();
+
+      toast({
+        title: "Role removed",
+        description: `${roleToRemove.charAt(0).toUpperCase() + roleToRemove.slice(1)} role has been removed.`,
+      });
+    } catch (error) {
+      console.error('Error removing user role:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove user role.",
         variant: "destructive",
       });
     }
@@ -161,7 +210,7 @@ export const UserManagement = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <p className="text-gray-600">
-                Manage user roles and permissions. Admins can access all features, while users have limited access.
+                Manage user roles and permissions. Users can have multiple roles - admins can access all features and manage others, while users have basic access. Multiple admins are supported.
               </p>
               <Badge variant="outline" className="text-xs">
                 {users.length} total users
@@ -172,7 +221,7 @@ export const UserManagement = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>User</TableHead>
-                  <TableHead>Role</TableHead>
+                  <TableHead>Roles & Permissions</TableHead>
                   <TableHead>Joined</TableHead>
                   <TableHead className="w-16">Actions</TableHead>
                 </TableRow>
@@ -194,21 +243,26 @@ export const UserManagement = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {user.role ? (
-                        <Badge 
-                          variant={user.role === 'admin' ? 'default' : 'secondary'}
-                          className="flex items-center space-x-1 w-fit"
-                        >
-                          {user.role === 'admin' ? (
-                            <ShieldCheck className="w-3 h-3" />
-                          ) : (
-                            <Shield className="w-3 h-3" />
-                          )}
-                          <span className="capitalize">{user.role}</span>
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline">No role</Badge>
-                      )}
+                      <div className="flex flex-wrap gap-1">
+                        {user.allRoles && user.allRoles.length > 0 ? (
+                          user.allRoles.map((role) => (
+                            <Badge 
+                              key={role}
+                              variant={role === 'admin' ? 'default' : 'secondary'}
+                              className="flex items-center space-x-1 text-xs"
+                            >
+                              {role === 'admin' ? (
+                                <ShieldCheck className="w-3 h-3" />
+                              ) : (
+                                <Shield className="w-3 h-3" />
+                              )}
+                              <span className="capitalize">{role}</span>
+                            </Badge>
+                          ))
+                        ) : (
+                          <Badge variant="outline">No roles</Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-sm text-gray-500">
                       {new Date(user.created_at).toLocaleDateString()}
@@ -222,36 +276,60 @@ export const UserManagement = () => {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem 
-                            onClick={() => updateUserRole(user.id, 'admin')}
-                            disabled={user.role === 'admin'}
+                            onClick={() => addUserRole(user.id, 'admin')}
+                            disabled={user.allRoles?.includes('admin')}
                           >
-                            Make Admin
+                            Add Admin Role
                           </DropdownMenuItem>
                           <DropdownMenuItem 
-                            onClick={() => updateUserRole(user.id, 'user')}
-                            disabled={user.role === 'user'}
+                            onClick={() => addUserRole(user.id, 'user')}
+                            disabled={user.allRoles?.includes('user')}
                           >
-                            Make User
+                            Add User Role
                           </DropdownMenuItem>
-                          {user.role && (
+                          {user.allRoles?.includes('admin') && (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                  Remove Role
+                                  Remove Admin Role
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Remove Admin Role</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to remove the admin role from {user.full_name}? 
+                                    They will lose administrator privileges.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => removeSpecificRole(user.id, 'admin')}>
+                                    Remove Admin Role
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                          {user.allRoles?.includes('user') && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                  Remove User Role
                                 </DropdownMenuItem>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Remove User Role</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Are you sure you want to remove the role from {user.full_name}? 
-                                    They will lose access to role-specific features.
+                                    Are you sure you want to remove the user role from {user.full_name}? 
+                                    They will lose basic user access.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => removeUserRole(user.id)}>
-                                    Remove Role
+                                  <AlertDialogAction onClick={() => removeSpecificRole(user.id, 'user')}>
+                                    Remove User Role
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
