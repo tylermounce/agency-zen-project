@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, MessageSquare, Reply, Hash, Search } from 'lucide-react';
+import { Send, MessageSquare, Reply, Hash, Search, MoreHorizontal, Edit2, Trash2 } from 'lucide-react';
 import { TextareaWithMentions } from '@/components/TextareaWithMentions';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -38,6 +39,8 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [profiles, setProfiles] = useState<{ [key: string]: Profile }>({});
   const [loading, setLoading] = useState(true);
+  const [editingMessage, setEditingMessage] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
 
   const threadId = `workspace-${workspaceId}-general`;
 
@@ -130,6 +133,45 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
     if (replyText.trim()) {
       setReplyText('');
       setReplyingTo(null);
+    }
+  };
+
+  const handleEditMessage = (messageId: string, currentContent: string) => {
+    setEditingMessage(messageId);
+    setEditText(currentContent);
+  };
+
+  const saveEditMessage = async (messageId: string) => {
+    if (!editText.trim()) return;
+
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .update({ content: editText })
+        .eq('id', messageId);
+
+      if (error) throw error;
+
+      setEditingMessage(null);
+      setEditText('');
+      fetchMessages(); // Refresh messages
+    } catch (error) {
+      // Error updating message - could add user notification here
+    }
+  };
+
+  const deleteMessage = async (messageId: string) => {
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .delete()
+        .eq('id', messageId);
+
+      if (error) throw error;
+
+      fetchMessages(); // Refresh messages
+    } catch (error) {
+      // Error deleting message - could add user notification here
     }
   };
 
@@ -236,11 +278,52 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
                       <AvatarFallback>{getAuthorInitials(message.sender_id)}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-semibold">{getAuthorName(message.sender_id)}</span>
-                        <span className="text-sm text-gray-500">{formatTimestamp(message.created_at)}</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-semibold">{getAuthorName(message.sender_id)}</span>
+                          <span className="text-sm text-gray-500">{formatTimestamp(message.created_at)}</span>
+                        </div>
+                        {message.sender_id === user?.id && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEditMessage(message.id, message.content)}>
+                                <Edit2 className="w-4 h-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => deleteMessage(message.id)}>
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </div>
-                      <p className="text-gray-900">{message.content}</p>
+                      {editingMessage === message.id ? (
+                        <div className="space-y-2">
+                          <TextareaWithMentions
+                            value={editText}
+                            onChange={setEditText}
+                            placeholder="Edit your message..."
+                            className="min-h-[60px] resize-none"
+                            workspaceId={workspaceId}
+                          />
+                          <div className="flex space-x-2">
+                            <Button size="sm" onClick={() => saveEditMessage(message.id)}>
+                              Save
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => setEditingMessage(null)}>
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-gray-900">{message.content}</p>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"

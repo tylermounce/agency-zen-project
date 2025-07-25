@@ -4,11 +4,23 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Copy, Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const ProjectTemplates = () => {
+  const { user } = useAuth();
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [newTemplateDialog, setNewTemplateDialog] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState('');
+  const [newTemplateDescription, setNewTemplateDescription] = useState('');
+  const [newTemplateCategory, setNewTemplateCategory] = useState('');
+  const [newTemplateDuration, setNewTemplateDuration] = useState('');
 
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -40,6 +52,51 @@ export const ProjectTemplates = () => {
     fetchTemplates();
   }, []);
 
+  const handleCreateTemplate = async () => {
+    if (!newTemplateName.trim() || !newTemplateCategory) return;
+    
+    try {
+      const { error } = await supabase
+        .from('project_templates')
+        .insert({
+          name: newTemplateName,
+          description: newTemplateDescription,
+          category: newTemplateCategory,
+          duration: newTemplateDuration,
+          tasks_count: 0,
+          is_popular: false
+        });
+
+      if (error) throw error;
+
+      setNewTemplateDialog(false);
+      setNewTemplateName('');
+      setNewTemplateDescription('');
+      setNewTemplateCategory('');
+      setNewTemplateDuration('');
+      
+      // Refresh templates list
+      const { data, error: fetchError } = await supabase
+        .from('project_templates')
+        .select(`
+          *,
+          template_tasks(*)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (!fetchError) {
+        const templatesWithTaskCount = data.map(template => ({
+          ...template,
+          tasks: template.template_tasks?.length || 0,
+          popular: template.is_popular
+        }));
+        setTemplates(templatesWithTaskCount);
+      }
+    } catch (error) {
+      // Error creating template - could add user notification here
+    }
+  };
+
   const getCategoryColor = (category: string) => {
     switch (category) {
       case 'Marketing': return 'bg-blue-100 text-blue-800';
@@ -61,10 +118,71 @@ export const ProjectTemplates = () => {
           <h2 className="text-2xl font-semibold">Project Templates</h2>
           <p className="text-gray-600 mt-1">Start new projects faster with pre-built templates</p>
         </div>
-        <Button>
-          <Plus className="w-4 h-4 mr-2" />
-          Create Template
-        </Button>
+        <Dialog open={newTemplateDialog} onOpenChange={setNewTemplateDialog}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              Create Template
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Template</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="template-name">Template Name</Label>
+                <Input
+                  id="template-name"
+                  value={newTemplateName}
+                  onChange={(e) => setNewTemplateName(e.target.value)}
+                  placeholder="Enter template name..."
+                />
+              </div>
+              <div>
+                <Label htmlFor="template-description">Description</Label>
+                <Textarea
+                  id="template-description"
+                  value={newTemplateDescription}
+                  onChange={(e) => setNewTemplateDescription(e.target.value)}
+                  placeholder="Enter template description..."
+                  className="min-h-[80px]"
+                />
+              </div>
+              <div>
+                <Label htmlFor="template-category">Category</Label>
+                <Select value={newTemplateCategory} onValueChange={setNewTemplateCategory}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Marketing">Marketing</SelectItem>
+                    <SelectItem value="Design">Design</SelectItem>
+                    <SelectItem value="Development">Development</SelectItem>
+                    <SelectItem value="Content">Content</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="template-duration">Duration</Label>
+                <Input
+                  id="template-duration"
+                  value={newTemplateDuration}
+                  onChange={(e) => setNewTemplateDuration(e.target.value)}
+                  placeholder="e.g., 2 weeks, 1 month..."
+                />
+              </div>
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => setNewTemplateDialog(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleCreateTemplate} disabled={!newTemplateName.trim() || !newTemplateCategory}>
+                  Create Template
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {templates.length === 0 ? (

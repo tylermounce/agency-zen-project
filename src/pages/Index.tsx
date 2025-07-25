@@ -7,6 +7,10 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Plus, Users, MessageSquare, Calendar, CheckSquare, User, Hash, Inbox, LogOut, Settings as SettingsIcon } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { ProjectBoard } from '@/components/ProjectBoard';
 import { TaskList } from '@/components/TaskList';
 import { MessagingPanel } from '@/components/MessagingPanel';
@@ -22,7 +26,7 @@ import { useNavigate } from 'react-router-dom';
 
 const Index = () => {
   const { user, signOut } = useAuth();
-  const { workspaces, getWorkspaceTaskCounts } = useUnifiedData();
+  const { workspaces, getWorkspaceTaskCounts, createProject } = useUnifiedData();
   const { isAdmin } = useUserRole();
   const navigate = useNavigate();
   const [selectedWorkspace, setSelectedWorkspace] = useState('client-1');
@@ -31,6 +35,9 @@ const Index = () => {
   const [showMasterInbox, setShowMasterInbox] = useState(false);
   const [projectFilter, setProjectFilter] = useState('');
   const [selectedProjectThread, setSelectedProjectThread] = useState('');
+  const [newProjectDialog, setNewProjectDialog] = useState(false);
+  const [newProjectTitle, setNewProjectTitle] = useState('');
+  const [newProjectDescription, setNewProjectDescription] = useState('');
 
   // Get task counts using unified data
   const taskCounts = getWorkspaceTaskCounts;
@@ -51,6 +58,25 @@ const Index = () => {
   const handleProjectMessageClick = (projectId: string, projectTitle: string) => {
     setSelectedProjectThread(projectTitle); // Use project title for thread identification
     setActiveTab('messages');
+  };
+
+  const handleCreateProject = async () => {
+    if (!newProjectTitle.trim() || !selectedWorkspace) return;
+    
+    try {
+      await createProject({
+        title: newProjectTitle,
+        description: newProjectDescription,
+        workspace_id: selectedWorkspace,
+        status: 'active'
+      });
+      
+      setNewProjectDialog(false);
+      setNewProjectTitle('');
+      setNewProjectDescription('');
+    } catch (error) {
+      // Error creating project - could add user notification here
+    }
   };
 
   const getUserInitials = (email: string) => {
@@ -161,10 +187,48 @@ const Index = () => {
             <Badge variant="secondary">{currentWorkspace?.tasks} active tasks</Badge>
           </div>
           {isAdmin && (
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              New Project
-            </Button>
+            <Dialog open={newProjectDialog} onOpenChange={setNewProjectDialog}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Project
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create New Project</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="project-title">Project Title</Label>
+                    <Input
+                      id="project-title"
+                      value={newProjectTitle}
+                      onChange={(e) => setNewProjectTitle(e.target.value)}
+                      placeholder="Enter project title..."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="project-description">Description</Label>
+                    <Textarea
+                      id="project-description"
+                      value={newProjectDescription}
+                      onChange={(e) => setNewProjectDescription(e.target.value)}
+                      placeholder="Enter project description..."
+                      className="min-h-[100px]"
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button variant="outline" onClick={() => setNewProjectDialog(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleCreateProject} disabled={!newProjectTitle.trim()}>
+                      Create Project
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           )}
         </div>
       </div>
