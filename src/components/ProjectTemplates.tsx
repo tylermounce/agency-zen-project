@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Copy, Star } from 'lucide-react';
+import { Plus, Copy, Star, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,10 @@ export const ProjectTemplates = () => {
   const [newTemplateDescription, setNewTemplateDescription] = useState('');
   const [newTemplateCategory, setNewTemplateCategory] = useState('');
   const [newTemplateDuration, setNewTemplateDuration] = useState('');
+  const [templateTasks, setTemplateTasks] = useState<Array<{title: string; description: string; priority: string}>>([]);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskDescription, setNewTaskDescription] = useState('');
+  const [newTaskPriority, setNewTaskPriority] = useState('medium');
 
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -52,28 +56,68 @@ export const ProjectTemplates = () => {
     fetchTemplates();
   }, []);
 
+  const addTemplateTask = () => {
+    if (!newTaskTitle.trim()) return;
+    
+    setTemplateTasks(prev => [...prev, {
+      title: newTaskTitle,
+      description: newTaskDescription,
+      priority: newTaskPriority
+    }]);
+    
+    setNewTaskTitle('');
+    setNewTaskDescription('');
+    setNewTaskPriority('medium');
+  };
+
+  const removeTemplateTask = (index: number) => {
+    setTemplateTasks(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleCreateTemplate = async () => {
     if (!newTemplateName.trim() || !newTemplateCategory) return;
     
     try {
-      const { error } = await supabase
+      // Create the template first
+      const { data: template, error: templateError } = await supabase
         .from('project_templates')
         .insert({
           name: newTemplateName,
           description: newTemplateDescription,
           category: newTemplateCategory,
           duration: newTemplateDuration,
-          tasks_count: 0,
+          tasks_count: templateTasks.length,
           is_popular: false
-        });
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (templateError) throw templateError;
+
+      // Create template tasks if any exist
+      if (templateTasks.length > 0 && template) {
+        const taskInserts = templateTasks.map((task, index) => ({
+          template_id: template.id,
+          title: task.title,
+          description: task.description,
+          priority: task.priority,
+          order_index: index,
+          status: 'todo'
+        }));
+
+        const { error: tasksError } = await supabase
+          .from('template_tasks')
+          .insert(taskInserts);
+
+        if (tasksError) throw tasksError;
+      }
 
       setNewTemplateDialog(false);
       setNewTemplateName('');
       setNewTemplateDescription('');
       setNewTemplateCategory('');
       setNewTemplateDuration('');
+      setTemplateTasks([]);
       
       // Refresh templates list
       const { data, error: fetchError } = await supabase
@@ -125,19 +169,35 @@ export const ProjectTemplates = () => {
               Create Template
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle>Create New Template</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="template-name">Template Name</Label>
-                <Input
-                  id="template-name"
-                  value={newTemplateName}
-                  onChange={(e) => setNewTemplateName(e.target.value)}
-                  placeholder="Enter template name..."
-                />
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="template-name">Template Name</Label>
+                  <Input
+                    id="template-name"
+                    value={newTemplateName}
+                    onChange={(e) => setNewTemplateName(e.target.value)}
+                    placeholder="Enter template name..."
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="template-category">Category</Label>
+                  <Select value={newTemplateCategory} onValueChange={setNewTemplateCategory}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Marketing">Marketing</SelectItem>
+                      <SelectItem value="Design">Design</SelectItem>
+                      <SelectItem value="Development">Development</SelectItem>
+                      <SelectItem value="Content">Content</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div>
                 <Label htmlFor="template-description">Description</Label>
@@ -150,20 +210,6 @@ export const ProjectTemplates = () => {
                 />
               </div>
               <div>
-                <Label htmlFor="template-category">Category</Label>
-                <Select value={newTemplateCategory} onValueChange={setNewTemplateCategory}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Marketing">Marketing</SelectItem>
-                    <SelectItem value="Design">Design</SelectItem>
-                    <SelectItem value="Development">Development</SelectItem>
-                    <SelectItem value="Content">Content</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
                 <Label htmlFor="template-duration">Duration</Label>
                 <Input
                   id="template-duration"
@@ -172,7 +218,79 @@ export const ProjectTemplates = () => {
                   placeholder="e.g., 2 weeks, 1 month..."
                 />
               </div>
-              <div className="flex justify-end space-x-2">
+              
+              {/* Template Tasks Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label>Template Tasks ({templateTasks.length})</Label>
+                </div>
+                
+                {/* Add new task form */}
+                <div className="border rounded-lg p-4 space-y-3">
+                  <h4 className="font-medium">Add Task to Template</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      value={newTaskTitle}
+                      onChange={(e) => setNewTaskTitle(e.target.value)}
+                      placeholder="Task title..."
+                    />
+                    <Select value={newTaskPriority} onValueChange={setNewTaskPriority}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Low Priority</SelectItem>
+                        <SelectItem value="medium">Medium Priority</SelectItem>
+                        <SelectItem value="high">High Priority</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Textarea
+                    value={newTaskDescription}
+                    onChange={(e) => setNewTaskDescription(e.target.value)}
+                    placeholder="Task description..."
+                    className="min-h-[60px]"
+                  />
+                  <Button size="sm" onClick={addTemplateTask} disabled={!newTaskTitle.trim()}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Task
+                  </Button>
+                </div>
+                
+                {/* Template tasks list */}
+                {templateTasks.length > 0 && (
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {templateTasks.map((task, index) => (
+                      <div key={index} className="flex items-start justify-between p-3 border rounded-lg">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <span className="font-medium">{task.title}</span>
+                            <Badge variant="outline" className={
+                              task.priority === 'high' ? 'border-red-200 text-red-700' :
+                              task.priority === 'medium' ? 'border-orange-200 text-orange-700' :
+                              'border-green-200 text-green-700'
+                            }>
+                              {task.priority}
+                            </Badge>
+                          </div>
+                          {task.description && (
+                            <p className="text-sm text-gray-600">{task.description}</p>
+                          )}
+                        </div>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onClick={() => removeTemplateTask(index)}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex justify-end space-x-2 pt-4 border-t">
                 <Button variant="outline" onClick={() => setNewTemplateDialog(false)}>
                   Cancel
                 </Button>

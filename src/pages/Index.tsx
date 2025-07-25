@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ProjectBoard } from '@/components/ProjectBoard';
 import { TaskList } from '@/components/TaskList';
 import { MessagingPanel } from '@/components/MessagingPanel';
@@ -21,12 +22,14 @@ import { ChannelDiscussion } from '@/components/ChannelDiscussion';
 import { MasterInbox } from '@/components/MasterInbox';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUnifiedData } from '@/hooks/useUnifiedData';
+import { useUsers } from '@/hooks/useUsers';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useNavigate } from 'react-router-dom';
 
 const Index = () => {
   const { user, signOut } = useAuth();
   const { workspaces, getWorkspaceTaskCounts, createProject } = useUnifiedData();
+  const { users } = useUsers();
   const { isAdmin } = useUserRole();
   const navigate = useNavigate();
   const [selectedWorkspace, setSelectedWorkspace] = useState('client-1');
@@ -38,6 +41,9 @@ const Index = () => {
   const [newProjectDialog, setNewProjectDialog] = useState(false);
   const [newProjectTitle, setNewProjectTitle] = useState('');
   const [newProjectDescription, setNewProjectDescription] = useState('');
+  const [newProjectDueDate, setNewProjectDueDate] = useState('');
+  const [newProjectPriority, setNewProjectPriority] = useState('medium');
+  const [newProjectMembers, setNewProjectMembers] = useState<string[]>([]);
 
   // Get task counts using unified data
   const taskCounts = getWorkspaceTaskCounts;
@@ -74,9 +80,20 @@ const Index = () => {
       setNewProjectDialog(false);
       setNewProjectTitle('');
       setNewProjectDescription('');
+      setNewProjectDueDate('');
+      setNewProjectPriority('medium');
+      setNewProjectMembers([]);
     } catch (error) {
       // Error creating project - could add user notification here
     }
+  };
+
+  const toggleProjectMember = (userId: string) => {
+    setNewProjectMembers(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
   };
 
   const getUserInitials = (email: string) => {
@@ -194,7 +211,7 @@ const Index = () => {
                   New Project
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>Create New Project</DialogTitle>
                 </DialogHeader>
@@ -217,6 +234,49 @@ const Index = () => {
                       placeholder="Enter project description..."
                       className="min-h-[100px]"
                     />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="project-due-date">Due Date</Label>
+                      <Input
+                        id="project-due-date"
+                        type="date"
+                        value={newProjectDueDate}
+                        onChange={(e) => setNewProjectDueDate(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="project-priority">Priority</Label>
+                      <Select value={newProjectPriority} onValueChange={setNewProjectPriority}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Team Members</Label>
+                    <div className="grid grid-cols-2 gap-2 p-3 border rounded-md max-h-40 overflow-y-auto">
+                      {users.map((user) => (
+                        <div key={user.id} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id={user.id}
+                            checked={newProjectMembers.includes(user.id)}
+                            onChange={() => toggleProjectMember(user.id)}
+                            className="rounded"
+                          />
+                          <Label htmlFor={user.id} className="text-sm font-medium">
+                            {user.full_name || user.email}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <div className="flex justify-end space-x-2">
                     <Button variant="outline" onClick={() => setNewProjectDialog(false)}>

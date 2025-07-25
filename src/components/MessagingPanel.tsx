@@ -7,6 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Search, Plus, MessageSquare, Paperclip } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TextareaWithMentions } from '@/components/TextareaWithMentions';
 import { useMessaging } from '@/hooks/useMessaging';
 import { useUsers } from '@/hooks/useUsers';
@@ -22,9 +25,14 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
   const { user } = useAuth();
   const { users } = useUsers();
   const { conversations, messages, sendMessage, createConversation, fetchMessages, getProjectThreadId } = useMessaging();
-  const { getWorkspace, mapWorkspaceIdToName } = useUnifiedData();
+  const { getWorkspace, mapWorkspaceIdToName, getWorkspaceProjects } = useUnifiedData();
   const [selectedConversation, setSelectedConversation] = useState('');
   const [newMessage, setNewMessage] = useState('');
+  
+  // New conversation dialog state
+  const [newConversationDialog, setNewConversationDialog] = useState(false);
+  const [newConversationTitle, setNewConversationTitle] = useState('');
+  const [newConversationProject, setNewConversationProject] = useState('');
 
   // Get current workspace info using unified data
   const currentWorkspace = getWorkspace(workspaceId);
@@ -76,8 +84,29 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
     fetchMessages(threadId);
   };
 
+  const handleCreateConversation = async () => {
+    if (!newConversationTitle.trim() || !newConversationProject) return;
+    
+    try {
+      await createConversation(
+        'project',
+        newConversationTitle,
+        [user?.id || ''],
+        currentWorkspaceName || workspaceId
+      );
+      
+      setNewConversationDialog(false);
+      setNewConversationTitle('');
+      setNewConversationProject('');
+      // Auto-select the new conversation would need the returned thread ID from createConversation
+    } catch (error) {
+      // Error creating conversation - could add user notification here
+    }
+  };
+
   const currentConversation = conversations.find(c => c.thread_id === selectedConversation);
   const currentMessages = selectedConversation ? messages[selectedConversation] || [] : [];
+  const workspaceProjects = getWorkspaceProjects(workspaceId);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
@@ -89,10 +118,53 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
               <MessageSquare className="w-5 h-5 mr-2" />
               Project Messages
             </CardTitle>
-            <Button size="sm" variant="outline">
-              <Plus className="w-4 h-4 mr-2" />
-              New Message
-            </Button>
+            <Dialog open={newConversationDialog} onOpenChange={setNewConversationDialog}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Message
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Start New Project Conversation</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="conversation-title">Conversation Title</Label>
+                    <Input
+                      id="conversation-title"
+                      value={newConversationTitle}
+                      onChange={(e) => setNewConversationTitle(e.target.value)}
+                      placeholder="Enter conversation title..."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="conversation-project">Project</Label>
+                    <Select value={newConversationProject} onValueChange={setNewConversationProject}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a project" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {workspaceProjects.map((project) => (
+                          <SelectItem key={project.id} value={project.id}>
+                            {project.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button variant="outline" onClick={() => setNewConversationDialog(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleCreateConversation} disabled={!newConversationTitle.trim() || !newConversationProject}>
+                      Start Conversation
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />

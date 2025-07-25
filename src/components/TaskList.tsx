@@ -9,8 +9,12 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Search, Filter, Plus, Calendar, User, X, ChevronDown, ChevronRight, Eye, EyeOff } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { TaskDetail } from '@/components/TaskDetail';
 import { useUnifiedData } from '@/hooks/useUnifiedData';
+import { useUsers } from '@/hooks/useUsers';
 import { Task } from '@/types';
 
 interface TaskListProps {
@@ -20,7 +24,8 @@ interface TaskListProps {
 }
 
 export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: TaskListProps) => {
-  const { getWorkspaceTasks, getWorkspaceProjects, getUser, getProject, updateTask } = useUnifiedData();
+  const { getWorkspaceTasks, getWorkspaceProjects, getUser, getProject, updateTask, createTask } = useUnifiedData();
+  const { users } = useUsers();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
@@ -29,6 +34,16 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
   const [showCompleted, setShowCompleted] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
+  
+  // New task dialog state
+  const [newTaskDialog, setNewTaskDialog] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskDescription, setNewTaskDescription] = useState('');
+  const [newTaskProject, setNewTaskProject] = useState('');
+  const [newTaskAssignee, setNewTaskAssignee] = useState('');
+  const [newTaskDueDate, setNewTaskDueDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newTaskPriority, setNewTaskPriority] = useState('medium');
+  const [newTaskStatus, setNewTaskStatus] = useState('todo');
   
   // Collapsible sections state
   const [overdueOpen, setOverdueOpen] = useState(true);
@@ -68,6 +83,39 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
 
   const handleTaskSave = (updatedTask: Task) => {
     updateTask(updatedTask.id, updatedTask);
+  };
+
+  const handleCreateTask = async () => {
+    if (!newTaskTitle.trim() || !newTaskProject || !newTaskAssignee) return;
+    
+    const project = workspaceProjects.find(p => p.id === newTaskProject);
+    if (!project) return;
+
+    try {
+      await createTask({
+        title: newTaskTitle,
+        description: newTaskDescription,
+        project_id: newTaskProject,
+        workspace_id: workspaceId,
+        assignee_id: newTaskAssignee,
+        due_date: newTaskDueDate,
+        priority: newTaskPriority as 'low' | 'medium' | 'high',
+        status: newTaskStatus as 'todo' | 'in-progress' | 'review' | 'done',
+        completed: false
+      });
+      
+      // Reset form
+      setNewTaskDialog(false);
+      setNewTaskTitle('');
+      setNewTaskDescription('');
+      setNewTaskProject('');
+      setNewTaskAssignee('');
+      setNewTaskDueDate(new Date().toISOString().split('T')[0]);
+      setNewTaskPriority('medium');
+      setNewTaskStatus('todo');
+    } catch (error) {
+      // Error creating task - could add user notification here
+    }
   };
 
   // Filter tasks
@@ -236,10 +284,118 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
                 })}
               </SelectContent>
             </Select>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              New Task
-            </Button>
+            <Dialog open={newTaskDialog} onOpenChange={setNewTaskDialog}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Task
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create New Task</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="task-title">Task Title</Label>
+                    <Input
+                      id="task-title"
+                      value={newTaskTitle}
+                      onChange={(e) => setNewTaskTitle(e.target.value)}
+                      placeholder="Enter task title..."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="task-description">Description</Label>
+                    <Textarea
+                      id="task-description"
+                      value={newTaskDescription}
+                      onChange={(e) => setNewTaskDescription(e.target.value)}
+                      placeholder="Enter task description..."
+                      className="min-h-[80px]"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="task-project">Project</Label>
+                      <Select value={newTaskProject} onValueChange={setNewTaskProject}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select project" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {workspaceProjects.map((project) => (
+                            <SelectItem key={project.id} value={project.id}>
+                              {project.title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="task-assignee">Assignee</Label>
+                      <Select value={newTaskAssignee} onValueChange={setNewTaskAssignee}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select assignee" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {users.map((user) => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.full_name || user.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="task-due-date">Due Date</Label>
+                      <Input
+                        id="task-due-date"
+                        type="date"
+                        value={newTaskDueDate}
+                        onChange={(e) => setNewTaskDueDate(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="task-priority">Priority</Label>
+                      <Select value={newTaskPriority} onValueChange={setNewTaskPriority}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="task-status">Status</Label>
+                      <Select value={newTaskStatus} onValueChange={setNewTaskStatus}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todo">To Do</SelectItem>
+                          <SelectItem value="in-progress">In Progress</SelectItem>
+                          <SelectItem value="review">Review</SelectItem>
+                          <SelectItem value="done">Done</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button variant="outline" onClick={() => setNewTaskDialog(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleCreateTask} disabled={!newTaskTitle.trim() || !newTaskProject || !newTaskAssignee}>
+                      Create Task
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </CardContent>
       </Card>
