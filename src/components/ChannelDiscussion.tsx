@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,69 +7,125 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, MessageSquare, Reply, Hash, Search } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ChannelDiscussionProps {
   workspaceId: string;
 }
 
+interface Message {
+  id: string;
+  content: string;
+  sender_id: string;
+  created_at: string;
+  thread_id: string;
+}
+
+interface Profile {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+}
+
 export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
+  const { user } = useAuth();
   const [newPost, setNewPost] = useState('');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [profiles, setProfiles] = useState<{ [key: string]: Profile }>({});
+  const [loading, setLoading] = useState(true);
 
-  const posts = [
-    {
-      id: '1',
-      author: 'JD',
-      content: 'Hey team! Just wanted to share an update on the Q4 campaign. We\'re making great progress on the social media assets.',
-      timestamp: '2 hours ago',
-      replies: [
-        {
-          id: '1-1',
-          author: 'SM',
-          content: 'That\'s awesome! The Instagram templates are looking really good.',
-          timestamp: '1 hour ago'
-        },
-        {
-          id: '1-2',
-          author: 'KL',
-          content: 'Agreed! When do we plan to start the rollout?',
-          timestamp: '45 minutes ago'
-        }
-      ]
-    },
-    {
-      id: '2',
-      author: 'AM',
-      content: 'Quick reminder: Team meeting tomorrow at 10 AM to discuss the brand identity project.',
-      timestamp: '1 day ago',
-      replies: []
-    },
-    {
-      id: '3',
-      author: 'RK',
-      content: 'Does anyone have the latest brand guidelines? Need them for the website mockups.',
-      timestamp: '2 days ago',
-      replies: [
-        {
-          id: '3-1',
-          author: 'TW',
-          content: 'I\'ll share them in the project files shortly!',
-          timestamp: '2 days ago'
-        }
-      ]
+  const threadId = `workspace-${workspaceId}-general`;
+
+  useEffect(() => {
+    fetchMessages();
+    fetchProfiles();
+  }, [workspaceId]);
+
+  const fetchMessages = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('thread_id', threadId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      setMessages(data || []);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
-  const handleNewPost = () => {
-    if (newPost.trim()) {
-      console.log('New post:', newPost);
+  const fetchProfiles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email');
+
+      if (error) throw error;
+      
+      const profileMap: { [key: string]: Profile } = {};
+      data?.forEach(profile => {
+        profileMap[profile.id] = profile;
+      });
+      setProfiles(profileMap);
+    } catch (error) {
+      console.error('Error fetching profiles:', error);
+    }
+  };
+
+  const handleNewPost = async () => {
+    if (!newPost.trim() || !user) return;
+
+    try {
+      // Check if conversation exists for this thread
+      const { data: existingConv } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('thread_id', threadId)
+        .single();
+
+      if (!existingConv) {
+        // Create conversation if it doesn't exist
+        await supabase
+          .from('conversations')
+          .insert({
+            thread_id: threadId,
+            thread_type: 'channel',
+            title: 'General Discussion',
+            workspace_id: workspaceId,
+            participants: [user.id]
+          });
+      }
+
+      // Insert the message
+      const { error } = await supabase
+        .from('messages')
+        .insert({
+          content: newPost,
+          sender_id: user.id,
+          thread_id: threadId,
+          thread_type: 'channel',
+          workspace_id: workspaceId
+        });
+
+      if (error) throw error;
+
       setNewPost('');
+      fetchMessages(); // Refresh messages
+    } catch (error) {
+      console.error('Error posting message:', error);
     }
   };
 
   const handleReply = (postId: string) => {
+    // For now, just log - reply functionality can be enhanced later
     if (replyText.trim()) {
       console.log('Reply to', postId, ':', replyText);
       setReplyText('');
@@ -77,16 +133,47 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
     }
   };
 
-  // Filter posts based on search term
-  const filteredPosts = posts.filter(post => {
-    const contentMatch = post.content.toLowerCase().includes(searchTerm.toLowerCase());
-    const authorMatch = post.author.toLowerCase().includes(searchTerm.toLowerCase());
-    const replyMatch = post.replies.some(reply => 
-      reply.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      reply.author.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    return contentMatch || authorMatch || replyMatch;
+  // Filter messages based on search term
+  const filteredMessages = messages.filter(message => {
+    const contentMatch = message.content.toLowerCase().includes(searchTerm.toLowerCase());
+    const profile = profiles[message.sender_id];
+    const authorMatch = profile?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       profile?.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    return contentMatch || authorMatch;
   });
+
+  const formatTimestamp = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) {
+      const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+      return `${diffInMinutes} minutes ago`;
+    } else if (diffInHours < 24) {
+      return `${diffInHours} hours ago`;
+    } else {
+      const diffInDays = Math.floor(diffInHours / 24);
+      return `${diffInDays} days ago`;
+    }
+  };
+
+  const getAuthorInitials = (senderId: string) => {
+    const profile = profiles[senderId];
+    if (profile?.full_name) {
+      return profile.full_name.split(' ').map(n => n[0]).join('').toUpperCase();
+    }
+    return profile?.email?.substring(0, 2).toUpperCase() || 'U';
+  };
+
+  const getAuthorName = (senderId: string) => {
+    const profile = profiles[senderId];
+    return profile?.full_name || profile?.email || 'Unknown User';
+  };
+
+  if (loading) {
+    return <div className="text-center py-8">Loading messages...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -131,89 +218,75 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
         </CardContent>
       </Card>
 
-      {/* Posts Feed */}
+      {/* Messages Feed */}
       <div className="space-y-4">
-        {filteredPosts.map((post) => (
-          <Card key={post.id}>
-            <CardContent className="pt-6">
-              <div className="space-y-4">
-                {/* Main Post */}
-                <div className="flex space-x-3">
-                  <Avatar className="w-10 h-10">
-                    <AvatarFallback>{post.author}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-semibold">{post.author}</span>
-                      <span className="text-sm text-gray-500">{post.timestamp}</span>
+        {filteredMessages.length === 0 && !searchTerm ? (
+          <div className="text-center py-8 text-gray-500">
+            <p>No messages yet. Start the conversation!</p>
+          </div>
+        ) : (
+          filteredMessages.map((message) => (
+            <Card key={message.id}>
+              <CardContent className="pt-6">
+                <div className="space-y-4">
+                  {/* Main Message */}
+                  <div className="flex space-x-3">
+                    <Avatar className="w-10 h-10">
+                      <AvatarFallback>{getAuthorInitials(message.sender_id)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-semibold">{getAuthorName(message.sender_id)}</span>
+                        <span className="text-sm text-gray-500">{formatTimestamp(message.created_at)}</span>
+                      </div>
+                      <p className="text-gray-900">{message.content}</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setReplyingTo(replyingTo === message.id ? null : message.id)}
+                        className="text-gray-500 hover:text-gray-700"
+                      >
+                        <Reply className="w-4 h-4 mr-1" />
+                        Reply
+                      </Button>
                     </div>
-                    <p className="text-gray-900">{post.content}</p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setReplyingTo(replyingTo === post.id ? null : post.id)}
-                      className="text-gray-500 hover:text-gray-700"
-                    >
-                      <Reply className="w-4 h-4 mr-1" />
-                      Reply
-                    </Button>
                   </div>
-                </div>
 
-                {/* Replies */}
-                {post.replies.length > 0 && (
-                  <div className="ml-13 space-y-3 border-l-2 border-gray-100 pl-4">
-                    {post.replies.map((reply) => (
-                      <div key={reply.id} className="flex space-x-3">
+                  {/* Reply Input */}
+                  {replyingTo === message.id && (
+                    <div className="ml-13 space-y-3">
+                      <div className="flex space-x-3">
                         <Avatar className="w-8 h-8">
-                          <AvatarFallback className="text-xs">{reply.author}</AvatarFallback>
+                          <AvatarFallback className="text-xs">{user ? getAuthorInitials(user.id) : 'U'}</AvatarFallback>
                         </Avatar>
-                        <div className="flex-1 space-y-1">
-                          <div className="flex items-center space-x-2">
-                            <span className="font-medium text-sm">{reply.author}</span>
-                            <span className="text-xs text-gray-500">{reply.timestamp}</span>
+                        <div className="flex-1 space-y-2">
+                          <Textarea
+                            placeholder="Write a reply..."
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            className="min-h-[60px] text-sm resize-none"
+                          />
+                          <div className="flex space-x-2">
+                            <Button size="sm" onClick={() => handleReply(message.id)} disabled={!replyText.trim()}>
+                              Reply
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => setReplyingTo(null)}>
+                              Cancel
+                            </Button>
                           </div>
-                          <p className="text-sm text-gray-800">{reply.content}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Reply Input */}
-                {replyingTo === post.id && (
-                  <div className="ml-13 space-y-3">
-                    <div className="flex space-x-3">
-                      <Avatar className="w-8 h-8">
-                        <AvatarFallback className="text-xs">JD</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 space-y-2">
-                        <Textarea
-                          placeholder="Write a reply..."
-                          value={replyText}
-                          onChange={(e) => setReplyText(e.target.value)}
-                          className="min-h-[60px] text-sm resize-none"
-                        />
-                        <div className="flex space-x-2">
-                          <Button size="sm" onClick={() => handleReply(post.id)} disabled={!replyText.trim()}>
-                            Reply
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setReplyingTo(null)}>
-                            Cancel
-                          </Button>
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
 
-      {/* No results message */}
-      {searchTerm && filteredPosts.length === 0 && (
+      {/* No search results message */}
+      {searchTerm && filteredMessages.length === 0 && (
         <div className="text-center py-8 text-gray-500">
           <p>No messages found matching "{searchTerm}"</p>
         </div>
