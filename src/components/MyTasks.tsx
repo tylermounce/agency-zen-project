@@ -11,11 +11,19 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Plus, Calendar, User, Filter, Search, ChevronDown, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { TaskDetail } from '@/components/TaskDetail';
 import { useAuth } from '@/contexts/AuthContext';
-import { useUsers } from '@/hooks/useUsers';
+import { useUnifiedData } from '@/hooks/useUnifiedData';
 
 export const MyTasks = () => {
   const { user } = useAuth();
-  const { users, loading: usersLoading } = useUsers();
+  const { 
+    users, 
+    getUserTasks, 
+    workspaces, 
+    projects, 
+    updateTask, 
+    createTask,
+    loading 
+  } = useUnifiedData();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
@@ -38,87 +46,37 @@ export const MyTasks = () => {
   const [upcomingOpen, setUpcomingOpen] = useState(true);
   const [completedOpen, setCompletedOpen] = useState(false);
 
-  // Mock data - tasks assigned to current user (JD)
-  const [myTasks, setMyTasks] = useState([
-    {
-      id: '1',
-      title: 'Design Instagram post templates',
-      project: 'Q4 Social Media Campaign',
-      workspace: 'TechCorp Inc.',
-      status: 'todo',
-      priority: 'high',
-      assignee: 'JD',
-      dueDate: '2024-07-05', // Overdue
-      completed: false,
-      notes: 'Need to follow brand guidelines and create 5 different templates.'
-    },
-    {
-      id: '2',
-      title: 'Review creative concepts',
-      project: 'Website Launch Campaign',
-      workspace: 'Fashion Forward',
-      status: 'in-progress',
-      priority: 'medium',
-      assignee: 'JD',
-      dueDate: new Date().toISOString().split('T')[0], // Today
-      completed: false
-    },
-    {
-      id: '3',
-      title: 'Update brand guidelines document',
-      project: 'Brand Identity Redesign',
-      workspace: 'Green Energy Co.',
-      status: 'review',
-      priority: 'low',
-      assignee: 'JD',
-      dueDate: '2024-07-15', // Future
-      completed: false
-    },
-    {
-      id: '4',
-      title: 'Finalize logo design',
-      project: 'Brand Identity Redesign',
-      workspace: 'Green Energy Co.',
-      status: 'done',
-      priority: 'high',
-      assignee: 'JD',
-      dueDate: '2024-07-03',
-      completed: true
-    },
-    {
-      id: '5',
-      title: 'Client presentation prep',
-      project: 'Website Launch Campaign',
-      workspace: 'Fashion Forward',
-      status: 'todo',
-      priority: 'high',
-      assignee: 'JD',
-      dueDate: '2024-07-04', // Overdue
-      completed: false
-    }
-  ]);
+  // Get user's tasks from Supabase
+  const userTasks = user ? getUserTasks(user.id) : [];
+  
+  // Transform tasks to include project and workspace names
+  const myTasks = userTasks.map(task => {
+    const project = projects.find(p => p.id === task.project_id);
+    const workspace = workspaces.find(w => w.id === task.workspace_id);
+    const assignedUser = users.find(u => u.id === task.assignee_id);
+    
+    return {
+      ...task,
+      project: project?.title || 'Unknown Project',
+      workspace: workspace?.name || 'Unknown Workspace',
+      assignee: assignedUser?.initials || 'UN',
+      dueDate: task.due_date,
+      notes: task.description || ''
+    };
+  });
 
-  const workspaces = [
-    'TechCorp Inc.',
-    'Fashion Forward', 
-    'Green Energy Co.',
-    'Internal Projects'
-  ];
-
-  const projects = {
-    'TechCorp Inc.': ['Q4 Social Media Campaign', 'Website Redesign', 'Mobile App Development'],
-    'Fashion Forward': ['Website Launch Campaign', 'Summer Collection', 'Brand Refresh'],
-    'Green Energy Co.': ['Brand Identity Redesign', 'Marketing Campaign', 'Product Launch'],
-    'Internal Projects': ['Team Building', 'Process Improvement', 'Training']
-  };
-
-  const teamMembers = ['JD', 'SM', 'AM', 'RK', 'KL', 'TW'];
+  // Get workspace projects mapping
+  const workspaceProjects = workspaces.reduce((acc, workspace) => {
+    const workspaceProjectList = projects.filter(p => p.workspace_id === workspace.id);
+    acc[workspace.name] = workspaceProjectList.map(p => p.title);
+    return acc;
+  }, {});
 
   // Set default assignee to current user when dialog opens
   React.useEffect(() => {
     if (isNewTaskOpen && user && users.length > 0) {
       const currentUser = users.find(u => u.id === user.id);
-      setNewTaskAssignee(currentUser?.initials || user.email?.substring(0, 2).toUpperCase() || 'JD');
+      setNewTaskAssignee(currentUser?.id || user.id);
     }
   }, [isNewTaskOpen, user, users]);
 
@@ -164,35 +122,44 @@ export const MyTasks = () => {
     }
   };
 
-  const handleCreateTask = () => {
+  const handleCreateTask = async () => {
     if (!newTaskTitle.trim()) return;
     
-    const newTask = {
-      id: Date.now().toString(),
-      title: newTaskTitle,
-      project: isPersonalTask ? 'Personal' : newTaskProject,
-      workspace: isPersonalTask ? 'Personal' : newTaskWorkspace,
-      status: 'todo',
-      priority: newTaskPriority,
-      assignee: newTaskAssignee,
-      dueDate: newTaskDueDate,
-      completed: false,
-      notes: ''
-    };
+    if (!isPersonalTask && (!newTaskWorkspace || !newTaskProject)) {
+      console.error('Workspace and project are required for non-personal tasks');
+      return;
+    }
     
-    setMyTasks(prev => [...prev, newTask]);
-    
-    console.log('Creating new task:', newTask);
-    
-    // Reset form
-    setNewTaskTitle('');
-    setNewTaskWorkspace('');
-    setNewTaskProject('');
-    setNewTaskPriority('medium');
-    setNewTaskAssignee(user?.email?.substring(0, 2).toUpperCase() || 'JD');
-    setNewTaskDueDate(new Date().toISOString().split('T')[0]);
-    setIsPersonalTask(false);
-    setIsNewTaskOpen(false);
+    try {
+      const selectedWorkspace = workspaces.find(w => w.name === newTaskWorkspace);
+      const selectedProject = projects.find(p => p.title === newTaskProject && p.workspace_id === selectedWorkspace?.id);
+      
+      const taskData = {
+        title: newTaskTitle,
+        description: '',
+        project_id: isPersonalTask ? null : selectedProject?.id,
+        workspace_id: isPersonalTask ? null : selectedWorkspace?.id,
+        assignee_id: newTaskAssignee,
+        due_date: newTaskDueDate,
+        status: 'todo' as const,
+        priority: newTaskPriority as 'low' | 'medium' | 'high',
+        completed: false
+      };
+      
+      await createTask(taskData);
+      
+      // Reset form
+      setNewTaskTitle('');
+      setNewTaskWorkspace('');
+      setNewTaskProject('');
+      setNewTaskPriority('medium');
+      setNewTaskAssignee(user?.id || '');
+      setNewTaskDueDate(new Date().toISOString().split('T')[0]);
+      setIsPersonalTask(false);
+      setIsNewTaskOpen(false);
+    } catch (error) {
+      console.error('Error creating task:', error);
+    }
   };
 
   const handleTaskClick = (task) => {
@@ -200,13 +167,19 @@ export const MyTasks = () => {
     setIsTaskDetailOpen(true);
   };
 
-  const handleTaskSave = (updatedTask) => {
-    setMyTasks(tasks => 
-      tasks.map(task => 
-        task.id === updatedTask.id ? updatedTask : task
-      )
-    );
-    console.log('Task updated:', updatedTask);
+  const handleTaskSave = async (updatedTask) => {
+    try {
+      await updateTask(updatedTask.id, {
+        title: updatedTask.title,
+        description: updatedTask.notes,
+        status: updatedTask.status,
+        priority: updatedTask.priority,
+        due_date: updatedTask.dueDate,
+        completed: updatedTask.completed
+      });
+    } catch (error) {
+      console.error('Error updating task:', error);
+    }
   };
 
   const TaskItem = ({ task }) => (
@@ -309,8 +282,8 @@ export const MyTasks = () => {
                             </SelectTrigger>
                             <SelectContent>
                               {workspaces.map((workspace) => (
-                                <SelectItem key={workspace} value={workspace}>
-                                  {workspace}
+                                <SelectItem key={workspace.id} value={workspace.name}>
+                                  {workspace.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -328,7 +301,7 @@ export const MyTasks = () => {
                               <SelectValue placeholder={newTaskWorkspace ? "Select project..." : "Select workspace first"} />
                             </SelectTrigger>
                             <SelectContent>
-                              {newTaskWorkspace && projects[newTaskWorkspace]?.map((project) => (
+                              {newTaskWorkspace && workspaceProjects[newTaskWorkspace]?.map((project) => (
                                 <SelectItem key={project} value={project}>
                                   {project}
                                 </SelectItem>
@@ -358,13 +331,13 @@ export const MyTasks = () => {
                         <User className="w-4 h-4" />
                         <span>Assigned To</span>
                       </label>
-                      <Select value={newTaskAssignee} onValueChange={setNewTaskAssignee} disabled={usersLoading}>
+                      <Select value={newTaskAssignee} onValueChange={setNewTaskAssignee} disabled={loading}>
                         <SelectTrigger>
-                          <SelectValue placeholder={usersLoading ? "Loading users..." : "Select user..."} />
+                          <SelectValue placeholder={loading ? "Loading users..." : "Select user..."} />
                         </SelectTrigger>
                         <SelectContent>
                           {users.map((user) => (
-                            <SelectItem key={user.id} value={user.initials}>
+                            <SelectItem key={user.id} value={user.id}>
                               {user.full_name} ({user.initials})
                             </SelectItem>
                           ))}
@@ -439,8 +412,8 @@ export const MyTasks = () => {
               <SelectContent>
                 <SelectItem value="all">All Workspaces</SelectItem>
                 {workspaces.map((workspace) => (
-                  <SelectItem key={workspace} value={workspace}>
-                    {workspace}
+                  <SelectItem key={workspace.id} value={workspace.name}>
+                    {workspace.name}
                   </SelectItem>
                 ))}
               </SelectContent>

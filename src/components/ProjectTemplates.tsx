@@ -3,64 +3,42 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Copy, Star } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 export const ProjectTemplates = () => {
-  const templates = [
-    {
-      id: '1',
-      name: 'Social Media Campaign',
-      description: 'Complete social media campaign workflow with content creation, scheduling, and analytics',
-      tasks: 15,
-      duration: '4 weeks',
-      category: 'Marketing',
-      popular: true
-    },
-    {
-      id: '2',
-      name: 'Brand Identity Project',
-      description: 'Full brand identity development including logo, guidelines, and collateral',
-      tasks: 22,
-      duration: '6 weeks',
-      category: 'Design',
-      popular: true
-    },
-    {
-      id: '3',
-      name: 'Website Launch',
-      description: 'Website development and launch process with testing and deployment',
-      tasks: 28,
-      duration: '8 weeks',
-      category: 'Development',
-      popular: false
-    },
-    {
-      id: '4',
-      name: 'Content Marketing Series',
-      description: 'Blog post series with research, writing, and promotion phases',
-      tasks: 12,
-      duration: '3 weeks',
-      category: 'Content',
-      popular: false
-    },
-    {
-      id: '5',
-      name: 'Product Launch Campaign',
-      description: 'End-to-end product launch with PR, marketing, and sales enablement',
-      tasks: 35,
-      duration: '12 weeks',
-      category: 'Marketing',
-      popular: true
-    },
-    {
-      id: '6',
-      name: 'Email Marketing Automation',
-      description: 'Setup and optimization of email marketing funnels and automation',
-      tasks: 18,
-      duration: '5 weeks',
-      category: 'Marketing',
-      popular: false
-    }
-  ];
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('project_templates')
+          .select(`
+            *,
+            template_tasks(*)
+          `)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        const templatesWithTaskCount = data.map(template => ({
+          ...template,
+          tasks: template.template_tasks?.length || 0,
+          popular: template.is_popular
+        }));
+
+        setTemplates(templatesWithTaskCount);
+      } catch (error) {
+        console.error('Error fetching templates:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTemplates();
+  }, []);
 
   const getCategoryColor = (category: string) => {
     switch (category) {
@@ -71,6 +49,10 @@ export const ProjectTemplates = () => {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  if (loading) {
+    return <div className="text-center py-8">Loading templates...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -85,8 +67,13 @@ export const ProjectTemplates = () => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {templates.map((template) => (
+      {templates.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-gray-500">No templates found. Create your first template to get started.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {templates.map((template) => (
           <Card key={template.id} className="hover:shadow-md transition-shadow">
             <CardHeader>
               <div className="flex items-start justify-between">
@@ -137,8 +124,9 @@ export const ProjectTemplates = () => {
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

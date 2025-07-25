@@ -8,6 +8,8 @@ import { Calendar, MessageSquare, MoreHorizontal } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ProjectDetail } from '@/components/ProjectDetail';
 import { useState } from 'react';
+import { useUnifiedData } from '@/hooks/useUnifiedData';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ProjectBoardProps {
   workspaceId: string;
@@ -18,44 +20,44 @@ interface ProjectBoardProps {
 export const ProjectBoard = ({ workspaceId, onProjectClick, onProjectMessageClick }: ProjectBoardProps) => {
   const [selectedProject, setSelectedProject] = useState(null);
   const [isProjectDetailOpen, setIsProjectDetailOpen] = useState(false);
+  const { user } = useAuth();
+  const { 
+    getWorkspaceProjects, 
+    getProjectTasks, 
+    users, 
+    projects, 
+    updateProject,
+    loading 
+  } = useUnifiedData();
   
-  const [projects, setProjects] = useState([
-    {
-      id: '1',
-      title: 'Q4 Social Media Campaign',
-      dueDate: '2024-07-15',
-      team: ['JD', 'SM', 'KL'],
-      priority: 'High',
-      tasks: { completed: 13, total: 20 },
-      workspace: 'TechCorp Inc.',
-      notes: 'Focus on Instagram and LinkedIn campaigns with emphasis on brand consistency.'
-    },
-    {
-      id: '2',
-      title: 'Brand Identity Redesign',
-      dueDate: '2024-07-10',
-      team: ['AM', 'RK'],
-      priority: 'Medium',
-      tasks: { completed: 17, total: 20 },
-      workspace: 'TechCorp Inc.',
-      notes: 'Complete rebrand including logo, colors, and typography guidelines.'
-    },
-    {
-      id: '3',
-      title: 'Website Launch Campaign',
-      dueDate: '2024-07-25',
-      team: ['JD', 'SM', 'TW', 'RK'],
-      priority: 'High',
-      tasks: { completed: 5, total: 20 },
-      workspace: 'TechCorp Inc.',
-      notes: 'Coordinate with development team for launch timeline and marketing materials.'
-    }
-  ]);
+  const workspaceProjects = getWorkspaceProjects(workspaceId);
+  
+  // Calculate task counts for each project
+  const projectsWithTasks = workspaceProjects.map(project => {
+    const projectTasks = getProjectTasks(project.id);
+    const completedTasks = projectTasks.filter(task => task.completed).length;
+    const totalTasks = projectTasks.length;
+    
+    // Get team members assigned to tasks in this project
+    const assigneeIds = [...new Set(projectTasks.map(task => task.assignee_id))];
+    const teamMembers = assigneeIds.map(id => {
+      const user = users.find(u => u.id === id);
+      return user?.initials || 'UN';
+    });
+    
+    return {
+      ...project,
+      tasks: { completed: completedTasks, total: totalTasks },
+      team: teamMembers,
+      priority: 'Medium', // Default priority since not in project schema
+      notes: project.description || ''
+    };
+  });
 
-  // Mock data for current user and unread messages/due tasks
-  const currentUser = 'JD';
-  const userUnreadMessages = { '1': true, '2': false, '3': true }; // project id -> user has unread
-  const userDueTasks = { '1': 3, '2': 0, '3': 1 }; // project id -> user's due tasks count
+  // Mock data for current user and unread messages/due tasks (until messaging is implemented)
+  const currentUser = user?.email?.substring(0, 2).toUpperCase() || 'UN';
+  const userUnreadMessages = {}; // Will be populated when messaging is implemented
+  const userDueTasks = {}; // Will be populated based on actual user tasks
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -85,7 +87,10 @@ export const ProjectBoard = ({ workspaceId, onProjectClick, onProjectMessageClic
   };
 
   const handleSaveProject = (updatedProject) => {
-    setProjects(projects.map(p => p.id === updatedProject.id ? updatedProject : p));
+    updateProject(updatedProject.id, {
+      title: updatedProject.title,
+      description: updatedProject.notes
+    });
   };
 
   const handleMessageClick = (e, project) => {
@@ -95,10 +100,22 @@ export const ProjectBoard = ({ workspaceId, onProjectClick, onProjectMessageClic
     }
   };
 
+  if (loading) {
+    return <div className="text-center py-8">Loading projects...</div>;
+  }
+
+  if (projectsWithTasks.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-500">No projects found for this workspace.</p>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {projects.map((project) => {
+        {projectsWithTasks.map((project) => {
           const progress = calculateProgress(project.tasks.completed, project.tasks.total);
           
           return (
@@ -144,7 +161,7 @@ export const ProjectBoard = ({ workspaceId, onProjectClick, onProjectMessageClic
                 <div className="flex items-center justify-between text-sm text-gray-600">
                   <div className="flex items-center space-x-1">
                     <Calendar className="w-4 h-4" />
-                    <span>Due {new Date(project.dueDate).toLocaleDateString()}</span>
+                    <span>Created {new Date(project.created_at).toLocaleDateString()}</span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <span>{project.tasks.completed}/{project.tasks.total} tasks</span>
