@@ -46,13 +46,11 @@ const Index = () => {
   const handleProjectClick = (projectId: string, projectTitle: string) => {
     setProjectFilter(projectTitle);
     setActiveTab('tasks');
-    console.log(`Filtering tasks for project: ${projectTitle}`);
   };
 
   const handleProjectMessageClick = (projectId: string, projectTitle: string) => {
     setSelectedProjectThread(projectTitle); // Use project title for thread identification
     setActiveTab('messages');
-    console.log(`Opening message thread for project: ${projectTitle}`);
   };
 
   const getUserInitials = (email: string) => {

@@ -43,7 +43,6 @@ export const useMessaging = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      console.log('Fetched conversations for user:', user.id, data);
       setConversations(data || []);
     } catch (err) {
       console.error('Error fetching conversations:', err);
@@ -64,7 +63,6 @@ export const useMessaging = () => {
 
       if (error) throw error;
       
-      console.log('Fetched messages for thread:', threadId, data);
       setMessages(prev => ({
         ...prev,
         [threadId]: data || []
@@ -99,8 +97,6 @@ export const useMessaging = () => {
       // Refresh messages for this thread and conversations list
       await fetchMessages(threadId);
       await fetchConversations();
-      
-      console.log('Message sent successfully to thread:', threadId);
     } catch (err) {
       console.error('Error sending message:', err);
       throw err;
@@ -121,7 +117,6 @@ export const useMessaging = () => {
         .maybeSingle();
 
       if (error) throw error;
-      console.log('findExistingProjectConversation result:', data);
       return data;
     } catch (err) {
       console.error('Error finding existing project conversation:', err);
@@ -142,7 +137,6 @@ export const useMessaging = () => {
       if (threadType === 'project' && title && workspaceId) {
         const existingConversation = await findExistingProjectConversation(title, workspaceId);
         if (existingConversation) {
-          console.log('Found existing project conversation:', existingConversation);
           return existingConversation;
         }
       }
@@ -166,7 +160,6 @@ export const useMessaging = () => {
 
       if (error) throw error;
 
-      console.log('Created conversation:', data);
       await fetchConversations();
       return data;
     } catch (err) {
@@ -204,7 +197,6 @@ export const useMessaging = () => {
           filter: `participants.cs.{${user.id}}`
         },
         () => {
-          console.log('Conversation changed, refreshing...');
           fetchConversations();
         }
       )
@@ -229,7 +221,6 @@ export const useMessaging = () => {
           table: 'messages'
         },
         (payload) => {
-          console.log('New message received:', payload);
           const newMessage = payload.new as Message;
           
           // Update messages state

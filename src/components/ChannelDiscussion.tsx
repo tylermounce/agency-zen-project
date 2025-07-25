@@ -127,7 +127,6 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
   const handleReply = (postId: string) => {
     // For now, just log - reply functionality can be enhanced later
     if (replyText.trim()) {
-      console.log('Reply to', postId, ':', replyText);
       setReplyText('');
       setReplyingTo(null);
     }

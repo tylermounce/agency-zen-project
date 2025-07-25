@@ -68,7 +68,6 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
 
   const handleTaskSave = (updatedTask: Task) => {
     updateTask(updatedTask.id, updatedTask);
-    console.log('Task updated:', updatedTask);
   };
 
   // Filter tasks

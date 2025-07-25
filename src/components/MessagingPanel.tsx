@@ -44,10 +44,8 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
   // Auto-select the project thread if provided
   useEffect(() => {
     if (selectedProjectThread) {
-      console.log('MessagingPanel - selectedProjectThread provided:', selectedProjectThread);
       // Find existing conversation for this project
       const existingThreadId = getProjectThreadId(selectedProjectThread, currentWorkspaceName);
-      console.log('MessagingPanel - found existing thread ID:', existingThreadId);
       if (existingThreadId) {
         setSelectedConversation(existingThreadId);
         fetchMessages(existingThreadId);
@@ -79,7 +77,6 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
   };
 
   const handleConversationSelect = (threadId: string) => {
-    console.log('MessagingPanel - selecting conversation:', threadId);
     setSelectedConversation(threadId);
     fetchMessages(threadId);
   };
