@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Search, Plus, MessageSquare, Paperclip } from 'lucide-react';
+import { TextareaWithMentions } from '@/components/TextareaWithMentions';
 import { useMessaging } from '@/hooks/useMessaging';
 import { useUsers } from '@/hooks/useUsers';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,15 +32,9 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
 
   // Filter conversations for current workspace - include ALL project conversations for this workspace
   const workspaceConversations = conversations.filter(c => {
-    console.log('Checking conversation:', c.title, 'workspace_id:', c.workspace_id, 'vs current:', currentWorkspaceName);
     // Include project conversations that belong to this workspace (by name)
     return c.thread_type === 'project' && c.workspace_id === currentWorkspaceName;
   });
-
-  console.log('MessagingPanel - workspaceId:', workspaceId);
-  console.log('MessagingPanel - currentWorkspaceName:', currentWorkspaceName);
-  console.log('MessagingPanel - all conversations:', conversations);
-  console.log('MessagingPanel - filtered workspace conversations:', workspaceConversations);
 
   // Auto-select the project thread if provided
   useEffect(() => {
@@ -72,7 +67,7 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
       );
       setNewMessage('');
     } catch (err) {
-      console.error('Failed to send message:', err);
+      // Message send failed - could implement error handling UI here
     }
   };
 
@@ -226,11 +221,12 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
               </ScrollArea>
               
               <div className="flex space-x-2">
-                <Textarea
-                  placeholder="Type your message..."
+                <TextareaWithMentions
                   value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
+                  onChange={setNewMessage}
+                  placeholder="Type your message... Use @ to mention someone"
                   className="min-h-[60px] resize-none"
+                  workspaceId={workspaceId}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();

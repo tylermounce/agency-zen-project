@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, MessageSquare, Reply, Hash, Search } from 'lucide-react';
+import { TextareaWithMentions } from '@/components/TextareaWithMentions';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -56,7 +57,7 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
       if (error) throw error;
       setMessages(data || []);
     } catch (error) {
-      console.error('Error fetching messages:', error);
+      // Error loading messages - could add user notification here
     } finally {
       setLoading(false);
     }
@@ -76,7 +77,7 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
       });
       setProfiles(profileMap);
     } catch (error) {
-      console.error('Error fetching profiles:', error);
+      // Error loading profiles - could add user notification here
     }
   };
 
@@ -120,7 +121,7 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
       setNewPost('');
       fetchMessages(); // Refresh messages
     } catch (error) {
-      console.error('Error posting message:', error);
+      // Error posting message - could add user notification here
     }
   };
 
@@ -201,11 +202,12 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
       <Card>
         <CardContent className="pt-6">
           <div className="space-y-4">
-            <Textarea
-              placeholder="Share an update, ask a question, or start a discussion..."
+            <TextareaWithMentions
               value={newPost}
-              onChange={(e) => setNewPost(e.target.value)}
+              onChange={setNewPost}
+              placeholder="Share an update, ask a question, or start a discussion... Use @ to mention someone"
               className="min-h-[100px] resize-none"
+              workspaceId={workspaceId}
             />
             <div className="flex justify-end">
               <Button onClick={handleNewPost} disabled={!newPost.trim()}>
@@ -258,13 +260,14 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
                         <Avatar className="w-8 h-8">
                           <AvatarFallback className="text-xs">{user ? getAuthorInitials(user.id) : 'U'}</AvatarFallback>
                         </Avatar>
-                        <div className="flex-1 space-y-2">
-                          <Textarea
-                            placeholder="Write a reply..."
-                            value={replyText}
-                            onChange={(e) => setReplyText(e.target.value)}
-                            className="min-h-[60px] text-sm resize-none"
-                          />
+                         <div className="flex-1 space-y-2">
+                           <TextareaWithMentions
+                             value={replyText}
+                             onChange={setReplyText}
+                             placeholder="Write a reply... Use @ to mention someone"
+                             className="min-h-[60px] text-sm resize-none"
+                             workspaceId={workspaceId}
+                           />
                           <div className="flex space-x-2">
                             <Button size="sm" onClick={() => handleReply(message.id)} disabled={!replyText.trim()}>
                               Reply

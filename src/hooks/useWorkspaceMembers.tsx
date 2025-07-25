@@ -29,7 +29,6 @@ export const useWorkspaceMembers = () => {
       
       setMembers(data || []);
     } catch (err) {
-      console.error('Error fetching workspace members:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch workspace members');
     } finally {
       setLoading(false);
@@ -49,7 +48,6 @@ export const useWorkspaceMembers = () => {
       
       return data || [];
     } catch (err) {
-      console.error('Error fetching workspace members:', err);
       throw err;
     }
   };
@@ -72,7 +70,6 @@ export const useWorkspaceMembers = () => {
       setMembers(prev => [...prev, data]);
       return data;
     } catch (err) {
-      console.error('Error adding workspace member:', err);
       throw err;
     }
   };
@@ -92,7 +89,6 @@ export const useWorkspaceMembers = () => {
         !(member.workspace_id === workspaceId && member.user_id === userId)
       ));
     } catch (err) {
-      console.error('Error removing workspace member:', err);
       throw err;
     }
   };
@@ -118,7 +114,6 @@ export const useWorkspaceMembers = () => {
       
       return data;
     } catch (err) {
-      console.error('Error updating workspace member role:', err);
       throw err;
     }
   };
