@@ -107,6 +107,35 @@ export type Database = {
         }
         Relationships: []
       }
+      project_members: {
+        Row: {
+          created_at: string
+          id: string
+          project_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          project_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          project_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_members_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_templates: {
         Row: {
           category: string
@@ -158,7 +187,10 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          due_date: string | null
           id: string
+          notes: string | null
+          priority: string | null
           status: string
           title: string
           updated_at: string
@@ -167,7 +199,10 @@ export type Database = {
         Insert: {
           created_at?: string
           description?: string | null
+          due_date?: string | null
           id?: string
+          notes?: string | null
+          priority?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -176,7 +211,10 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string | null
+          due_date?: string | null
           id?: string
+          notes?: string | null
+          priority?: string | null
           status?: string
           title?: string
           updated_at?: string

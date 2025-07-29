@@ -12,8 +12,18 @@ export interface Project {
   description?: string;
   workspace_id: string;
   status: 'active' | 'completed' | 'on-hold' | 'archived';
+  due_date?: string;
+  priority?: 'low' | 'medium' | 'high';
+  notes?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface ProjectMember {
+  id: string;
+  project_id: string;
+  user_id: string;
+  created_at: string;
 }
 
 export interface Task {

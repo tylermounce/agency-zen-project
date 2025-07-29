@@ -42,7 +42,7 @@ const Index = () => {
   const [newProjectTitle, setNewProjectTitle] = useState('');
   const [newProjectDescription, setNewProjectDescription] = useState('');
   const [newProjectDueDate, setNewProjectDueDate] = useState('');
-  const [newProjectPriority, setNewProjectPriority] = useState('medium');
+  const [newProjectPriority, setNewProjectPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [newProjectMembers, setNewProjectMembers] = useState<string[]>([]);
 
   // Get task counts using unified data
@@ -74,7 +74,10 @@ const Index = () => {
         title: newProjectTitle,
         description: newProjectDescription,
         workspace_id: selectedWorkspace,
-        status: 'active'
+        status: 'active',
+        priority: newProjectPriority,
+        due_date: newProjectDueDate || null,
+        notes: newProjectDescription
       });
       
       setNewProjectDialog(false);
@@ -247,7 +250,7 @@ const Index = () => {
                     </div>
                     <div>
                       <Label htmlFor="project-priority">Priority</Label>
-                      <Select value={newProjectPriority} onValueChange={setNewProjectPriority}>
+                      <Select value={newProjectPriority} onValueChange={(value: 'low' | 'medium' | 'high') => setNewProjectPriority(value)}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
