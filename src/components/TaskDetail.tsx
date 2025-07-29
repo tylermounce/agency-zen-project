@@ -31,8 +31,8 @@ export const TaskDetail = ({ task, open, onOpenChange, onSave }: TaskDetailProps
   if (!task || !editedTask) return null;
 
   const handleSave = () => {
-    // Only send the fields that might have changed
-    const updates = {
+    // Only send the fields that might have changed, excluding fields that shouldn't be updated
+    const updates: Partial<Task> = {
       title: editedTask.title,
       description: editedTask.description,
       assignee_id: editedTask.assignee_id,
@@ -40,6 +40,8 @@ export const TaskDetail = ({ task, open, onOpenChange, onSave }: TaskDetailProps
       priority: editedTask.priority,
       status: editedTask.status
     };
+    
+    // Don't include project_id in updates to avoid UUID issues
     onSave(updates as Task);
     onOpenChange(false);
   };
