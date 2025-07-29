@@ -177,7 +177,7 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
             <span className="truncate">{project?.title || 'General Tasks'}</span>
             <div className="flex items-center space-x-1">
               <Calendar className="w-3 h-3" />
-              <span>{new Date(task.due_date).toLocaleDateString()}</span>
+              <span>{new Date(task.due_date + 'T12:00:00').toLocaleDateString()}</span>
             </div>
           </div>
         </div>
