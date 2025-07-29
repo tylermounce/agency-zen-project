@@ -31,12 +31,21 @@ export const TaskDetail = ({ task, open, onOpenChange, onSave }: TaskDetailProps
   if (!task || !editedTask) return null;
 
   const handleSave = () => {
-    onSave(editedTask);
+    // Only send the fields that might have changed
+    const updates = {
+      title: editedTask.title,
+      description: editedTask.description,
+      assignee_id: editedTask.assignee_id,
+      due_date: editedTask.due_date,
+      priority: editedTask.priority,
+      status: editedTask.status
+    };
+    onSave(updates as Task);
     onOpenChange(false);
   };
 
   // Get project and workspace info for display
-  const project = getProject(task.project_id);
+  const project = task.project_id ? getProject(task.project_id) : null;
   const workspace = getWorkspace(task.workspace_id);
 
   return (
@@ -65,7 +74,7 @@ export const TaskDetail = ({ task, open, onOpenChange, onSave }: TaskDetailProps
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Project</Label>
-              <Input value={project?.title || 'Unknown Project'} readOnly className="bg-gray-50" />
+              <Input value={project?.title || 'General Tasks'} readOnly className="bg-gray-50" />
             </div>
             <div className="space-y-2">
               <Label>Workspace</Label>
