@@ -86,16 +86,16 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
   };
 
   const handleCreateTask = async () => {
-    if (!newTaskTitle.trim() || !newTaskProject || !newTaskAssignee) return;
+    if (!newTaskTitle.trim() || !newTaskAssignee) return;
     
-    const project = workspaceProjects.find(p => p.id === newTaskProject);
-    if (!project) return;
+    // Allow tasks without project (workspace tasks)
+    const projectId = newTaskProject || null;
 
     try {
       await createTask({
         title: newTaskTitle,
         description: newTaskDescription,
-        project_id: newTaskProject,
+        project_id: projectId,
         workspace_id: workspaceId,
         assignee_id: newTaskAssignee,
         due_date: newTaskDueDate,
@@ -122,8 +122,8 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
   const filteredTasks = workspaceTasks.filter(task => {
     if (!showCompleted && task.completed) return false;
     
-    const project = getProject(task.project_id);
-    const projectTitle = project?.title || '';
+    const project = task.project_id ? getProject(task.project_id) : null;
+    const projectTitle = project?.title || 'General Tasks';
     
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          projectTitle.toLowerCase().includes(searchTerm.toLowerCase());
@@ -144,7 +144,7 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
   const completedTasks = filteredTasks.filter(task => task.completed);
 
   const TaskItem = ({ task }: { task: Task }) => {
-    const project = getProject(task.project_id);
+    const project = task.project_id ? getProject(task.project_id) : null;
     const assignee = getUser(task.assignee_id);
     
     return (
@@ -170,7 +170,7 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
             </Badge>
           </div>
           <div className="flex items-center space-x-4 text-sm text-gray-600">
-            <span className="truncate">{project?.title || 'Unknown Project'}</span>
+            <span className="truncate">{project?.title || 'General Tasks'}</span>
             <div className="flex items-center space-x-1">
               <Calendar className="w-3 h-3" />
               <span>{new Date(task.due_date).toLocaleDateString()}</span>
@@ -248,8 +248,9 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
               <SelectTrigger>
                 <SelectValue placeholder="Project" />
               </SelectTrigger>
-              <SelectContent>
+               <SelectContent>
                 <SelectItem value="all">All Projects</SelectItem>
+                <SelectItem value="General Tasks">General Tasks</SelectItem>
                 {projectNames.map((projectName) => (
                   <SelectItem key={projectName} value={projectName}>
                     {projectName}
@@ -323,6 +324,7 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
                           <SelectValue placeholder="Select project" />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="">General Tasks (No Project)</SelectItem>
                           {workspaceProjects.map((project) => (
                             <SelectItem key={project.id} value={project.id}>
                               {project.title}
@@ -389,7 +391,7 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
                     <Button variant="outline" onClick={() => setNewTaskDialog(false)}>
                       Cancel
                     </Button>
-                    <Button onClick={handleCreateTask} disabled={!newTaskTitle.trim() || !newTaskProject || !newTaskAssignee}>
+                    <Button onClick={handleCreateTask} disabled={!newTaskTitle.trim() || !newTaskAssignee}>
                       Create Task
                     </Button>
                   </div>
