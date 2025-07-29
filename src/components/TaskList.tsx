@@ -82,7 +82,11 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
   };
 
   const handleTaskSave = (updatedTask: Task) => {
-    updateTask(updatedTask.id, updatedTask);
+    console.log('TaskList handleTaskSave called with:', updatedTask);
+    console.log('Selected task ID:', selectedTask?.id);
+    if (selectedTask?.id) {
+      updateTask(selectedTask.id, updatedTask);
+    }
   };
 
   const handleCreateTask = async () => {

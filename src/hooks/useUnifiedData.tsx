@@ -57,8 +57,12 @@ export const useUnifiedData = () => {
 
   // Task management (now uses Supabase)
   const handleUpdateTask = async (taskId: string, updates: Partial<Task>) => {
+    console.log('useUnifiedData handleUpdateTask called');
+    console.log('Task ID:', taskId);
+    console.log('Updates:', updates);
     try {
       await updateTask(taskId, updates);
+      console.log('Task update successful');
     } catch (error) {
       console.error('Failed to update task:', error);
     }

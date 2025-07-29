@@ -31,6 +31,10 @@ export const TaskDetail = ({ task, open, onOpenChange, onSave }: TaskDetailProps
   if (!task || !editedTask) return null;
 
   const handleSave = () => {
+    console.log('TaskDetail handleSave called');
+    console.log('Original task due_date:', task.due_date);
+    console.log('Edited task due_date:', editedTask.due_date);
+    
     // Only send the fields that might have changed, excluding fields that shouldn't be updated
     const updates: Partial<Task> = {
       title: editedTask.title,
@@ -40,6 +44,8 @@ export const TaskDetail = ({ task, open, onOpenChange, onSave }: TaskDetailProps
       priority: editedTask.priority,
       status: editedTask.status
     };
+    
+    console.log('Updates to be sent:', updates);
     
     // Don't include project_id in updates to avoid UUID issues
     onSave(updates as Task);
@@ -115,7 +121,10 @@ export const TaskDetail = ({ task, open, onOpenChange, onSave }: TaskDetailProps
               <Input
                 type="date"
                 value={editedTask.due_date}
-                onChange={(e) => setEditedTask({...editedTask, due_date: e.target.value})}
+                onChange={(e) => {
+                  console.log('Date input changed:', e.target.value);
+                  setEditedTask({...editedTask, due_date: e.target.value});
+                }}
               />
             </div>
           </div>
