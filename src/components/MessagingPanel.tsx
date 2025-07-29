@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,10 +30,9 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
   const [selectedConversation, setSelectedConversation] = useState('');
   const [newMessage, setNewMessage] = useState('');
   
-  // New conversation dialog state
+  // New conversation dialog state - simplified to just project selection
   const [newConversationDialog, setNewConversationDialog] = useState(false);
-  const [newConversationTitle, setNewConversationTitle] = useState('');
-  const [newConversationProject, setNewConversationProject] = useState('');
+  const [selectedProject, setSelectedProject] = useState('');
 
   // Get current workspace info using unified data
   const currentWorkspace = getWorkspace(workspaceId);
@@ -84,21 +84,28 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
     fetchMessages(threadId);
   };
 
-  const handleCreateConversation = async () => {
-    if (!newConversationTitle.trim() || !newConversationProject) return;
+  const handleCreateProjectConversation = async () => {
+    if (!selectedProject || !user) return;
+    
+    const project = getWorkspaceProjects(workspaceId).find(p => p.id === selectedProject);
+    if (!project) return;
     
     try {
-      await createConversation(
+      // Create conversation using project title as the thread title
+      const conversation = await createConversation(
         'project',
-        newConversationTitle,
-        [user?.id || ''],
+        project.title,
+        [user.id],
         currentWorkspaceName || workspaceId
       );
       
+      if (conversation) {
+        setSelectedConversation(conversation.thread_id);
+        fetchMessages(conversation.thread_id);
+      }
+      
       setNewConversationDialog(false);
-      setNewConversationTitle('');
-      setNewConversationProject('');
-      // Auto-select the new conversation would need the returned thread ID from createConversation
+      setSelectedProject('');
     } catch (error) {
       // Error creating conversation - could add user notification here
     }
@@ -122,28 +129,19 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
               <DialogTrigger asChild>
                 <Button size="sm" variant="outline">
                   <Plus className="w-4 h-4 mr-2" />
-                  New Message
+                  New Project Thread
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Start New Project Conversation</DialogTitle>
+                  <DialogTitle>Start Project Conversation</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="conversation-title">Conversation Title</Label>
-                    <Input
-                      id="conversation-title"
-                      value={newConversationTitle}
-                      onChange={(e) => setNewConversationTitle(e.target.value)}
-                      placeholder="Enter conversation title..."
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="conversation-project">Project</Label>
-                    <Select value={newConversationProject} onValueChange={setNewConversationProject}>
+                    <Label htmlFor="project-select">Select Project</Label>
+                    <Select value={selectedProject} onValueChange={setSelectedProject}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a project" />
+                        <SelectValue placeholder="Choose a project to message about" />
                       </SelectTrigger>
                       <SelectContent>
                         {workspaceProjects.map((project) => (
@@ -158,8 +156,8 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
                     <Button variant="outline" onClick={() => setNewConversationDialog(false)}>
                       Cancel
                     </Button>
-                    <Button onClick={handleCreateConversation} disabled={!newConversationTitle.trim() || !newConversationProject}>
-                      Start Conversation
+                    <Button onClick={handleCreateProjectConversation} disabled={!selectedProject}>
+                      Start Messaging
                     </Button>
                   </div>
                 </div>
@@ -186,6 +184,9 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
                 >
                   <div className="flex items-start justify-between mb-2">
                     <h4 className="font-medium text-sm truncate">{conversation.title}</h4>
+                    <Badge variant="outline" className="text-xs">
+                      Project
+                    </Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex -space-x-1">
@@ -217,7 +218,7 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
               {workspaceConversations.length === 0 && (
                 <div className="p-4 text-center text-gray-500">
                   <p>No project conversations yet</p>
-                  <p className="text-sm">Start messaging from the Master Inbox</p>
+                  <p className="text-sm">Select a project above to start messaging</p>
                 </div>
               )}
             </div>
@@ -232,7 +233,10 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <h3 className="font-semibold">{currentConversation.title}</h3>
+                  <div className="flex flex-col">
+                    <h3 className="font-semibold">{currentConversation.title}</h3>
+                    <p className="text-sm text-gray-500">Project Thread</p>
+                  </div>
                   <div className="flex -space-x-1">
                     {currentConversation.participants.map((participantId, index) => {
                       const participant = getUserById(participantId);
@@ -254,7 +258,7 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
                   {currentMessages.length === 0 ? (
                     <div className="text-center text-gray-500 py-8">
                       <p>No messages yet</p>
-                      <p className="text-sm">Start the conversation below</p>
+                      <p className="text-sm">Start the project conversation below</p>
                     </div>
                   ) : (
                     currentMessages.map((message) => {
@@ -300,7 +304,7 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
                 <TextareaWithMentions
                   value={newMessage}
                   onChange={setNewMessage}
-                  placeholder="Type your message... Use @ to mention someone"
+                  placeholder="Message this project team... Use @ to mention someone"
                   className="min-h-[60px] resize-none"
                   workspaceId={workspaceId}
                   onKeyDown={(e) => {
@@ -325,8 +329,8 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
           <div className="flex-1 flex items-center justify-center text-gray-500 h-full">
             <div className="text-center">
               <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-              <p className="text-lg font-medium">Select a project conversation</p>
-              <p className="text-sm">Choose from your project conversations on the left</p>
+              <p className="text-lg font-medium">Select a project to message about</p>
+              <p className="text-sm">Choose from your project conversations on the left or create a new one</p>
             </div>
           </div>
         )}
