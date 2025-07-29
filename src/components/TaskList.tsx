@@ -89,7 +89,7 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
     if (!newTaskTitle.trim() || !newTaskAssignee) return;
     
     // Allow tasks without project (workspace tasks)
-    const projectId = newTaskProject || null;
+    const projectId = newTaskProject === "none" ? null : newTaskProject;
 
     try {
       await createTask({
@@ -324,7 +324,7 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
                           <SelectValue placeholder="Select project" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">General Tasks (No Project)</SelectItem>
+                          <SelectItem value="none">General Tasks (No Project)</SelectItem>
                           {workspaceProjects.map((project) => (
                             <SelectItem key={project.id} value={project.id}>
                               {project.title}
