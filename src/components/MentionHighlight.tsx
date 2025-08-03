@@ -6,8 +6,8 @@ interface MentionHighlightProps {
 }
 
 export const MentionHighlight: React.FC<MentionHighlightProps> = ({ content, className = '' }) => {
-  // Split the content by mentions (@username patterns) - capture full names with spaces
-  const parts = content.split(/(@[^@\n]+?)(\s|$)/g);
+  // Split the content by mentions - match @username (including spaces and special chars until word boundary)
+  const parts = content.split(/(@\S+(?:\s+\S+)*?)(?=\s|$|@)/g);
 
   return (
     <span className={className}>
@@ -17,7 +17,7 @@ export const MentionHighlight: React.FC<MentionHighlightProps> = ({ content, cla
           return (
             <span
               key={index}
-              className="bg-primary/10 text-primary px-1 py-0.5 rounded font-medium"
+              className="bg-muted text-foreground px-1 py-0.5 rounded font-medium"
             >
               {part}
             </span>
