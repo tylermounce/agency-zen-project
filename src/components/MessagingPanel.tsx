@@ -17,6 +17,7 @@ import { useMessaging } from '@/hooks/useMessaging';
 import { useUsers } from '@/hooks/useUsers';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotificationCreation } from '@/hooks/useNotificationCreation';
+import { useNotifications } from '@/hooks/useNotifications';
 import { useUnifiedData } from '@/hooks/useUnifiedData';
 
 interface MessagingPanelProps {
@@ -29,6 +30,7 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
   const { users } = useUsers();
   const { conversations, messages, sendMessage, createConversation, fetchMessages, getProjectThreadId } = useMessaging();
   const { createMentionNotifications } = useNotificationCreation();
+  const { hasUnreadInThread, markThreadAsRead, getUnreadCountForThread } = useNotifications();
   const { getWorkspace, mapWorkspaceIdToName, getWorkspaceProjects } = useUnifiedData();
   const [selectedConversation, setSelectedConversation] = useState('');
   const [newMessage, setNewMessage] = useState('');
@@ -95,6 +97,8 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
   const handleConversationSelect = (threadId: string) => {
     setSelectedConversation(threadId);
     fetchMessages(threadId);
+    // Mark thread notifications as read when opening
+    markThreadAsRead(threadId);
   };
 
   const handleCreateProjectConversation = async () => {
@@ -196,7 +200,17 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
                   }`}
                 >
                   <div className="flex items-start justify-between mb-3">
-                    <h4 className="font-medium text-sm truncate">{conversation.title}</h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-medium text-sm truncate">{conversation.title}</h4>
+                      {hasUnreadInThread(conversation.thread_id) && (
+                        <div className="w-2 h-2 bg-primary rounded-full"></div>
+                      )}
+                      {getUnreadCountForThread(conversation.thread_id) > 0 && (
+                        <Badge variant="destructive" className="text-xs px-1 py-0 min-w-[16px] h-4">
+                          {getUnreadCountForThread(conversation.thread_id)}
+                        </Badge>
+                      )}
+                    </div>
                     <Badge variant="outline" className="text-xs">
                       Project
                     </Badge>

@@ -2,6 +2,7 @@ import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { UserMentionDropdown } from '@/components/UserMentionDropdown';
 import { useUserMentions } from '@/hooks/useUserMentions';
+import { MentionHighlight } from '@/components/MentionHighlight';
 
 interface TextareaWithMentionsProps {
   value: string;
@@ -120,15 +121,33 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
 
   return (
     <div className="relative">
+      {/* Invisible textarea for cursor positioning */}
       <Textarea
         ref={textareaRef}
         value={value}
         onChange={handleInputChange}
         onKeyDown={handleKeyDownInternal}
         placeholder={placeholder}
-        className={className}
+        className={`${className} relative z-10 bg-transparent caret-foreground text-transparent selection:bg-primary/20`}
         disabled={disabled}
       />
+      
+      {/* Visible overlay with mention highlighting */}
+      <div 
+        className="absolute inset-0 p-3 text-sm whitespace-pre-wrap break-words pointer-events-none z-0 bg-background border border-input rounded-md overflow-hidden"
+        style={{ 
+          fontSize: '14px',
+          fontFamily: 'inherit',
+          lineHeight: '1.4',
+          minHeight: '80px'
+        }}
+      >
+        {value ? (
+          <MentionHighlight content={value} />
+        ) : (
+          <span className="text-muted-foreground">{placeholder}</span>
+        )}
+      </div>
       
       <UserMentionDropdown
         users={mentionState.suggestions}

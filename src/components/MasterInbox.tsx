@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Search, Inbox, MessageSquare, Hash, User, ArrowLeft, Plus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNotificationCreation } from '@/hooks/useNotificationCreation';
+import { useNotifications } from '@/hooks/useNotifications';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useMessaging } from '@/hooks/useMessaging';
@@ -29,6 +30,7 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
   const { users, loading: usersLoading } = useUsers();
   const { conversations, messages, sendMessage, createConversation, fetchMessages } = useMessaging();
   const { createMentionNotifications } = useNotificationCreation();
+  const { notifications, unreadCount, hasUnreadInThread, markThreadAsRead, getUnreadCountForThread } = useNotifications();
   const { workspaces, projects } = useUnifiedData();
   
   const [selectedThread, setSelectedThread] = useState('');
@@ -168,6 +170,11 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
             <Inbox className="w-6 h-6" />
             <h1 className="text-2xl font-semibold text-gray-900">Master Inbox</h1>
             <Badge variant="secondary">{conversations.length} conversations</Badge>
+            {unreadCount > 0 && (
+              <Badge variant="destructive" className="ml-2">
+                {unreadCount} unread
+              </Badge>
+            )}
           </div>
           <Button onClick={() => setShowNewMessageDialog(true)}>
             <Plus className="w-4 h-4 mr-2" />
@@ -190,7 +197,10 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
               {conversations.map((conversation) => (
                 <div
                   key={conversation.id}
-                  onClick={() => setSelectedThread(conversation.thread_id)}
+                  onClick={() => {
+                    setSelectedThread(conversation.thread_id);
+                    markThreadAsRead(conversation.thread_id);
+                  }}
                   className={`p-3 rounded-lg cursor-pointer transition-colors ${
                     selectedThread === conversation.thread_id
                       ? 'bg-blue-50 border-blue-200 border'
@@ -199,8 +209,18 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center space-x-2">
-                      {getThreadIcon(conversation.thread_type)}
+                      <div className="relative">
+                        {getThreadIcon(conversation.thread_type)}
+                        {hasUnreadInThread(conversation.thread_id) && (
+                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full"></div>
+                        )}
+                      </div>
                       <h4 className="font-medium text-sm truncate">{conversation.title}</h4>
+                      {getUnreadCountForThread(conversation.thread_id) > 0 && (
+                        <Badge variant="destructive" className="text-xs px-1 py-0 min-w-[16px] h-4">
+                          {getUnreadCountForThread(conversation.thread_id)}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   {conversation.workspace_id && (
