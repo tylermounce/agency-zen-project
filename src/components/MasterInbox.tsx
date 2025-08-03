@@ -11,6 +11,7 @@ import { MentionHighlight } from '@/components/MentionHighlight';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Search, Inbox, MessageSquare, Hash, User, ArrowLeft, Plus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useNotificationCreation } from '@/hooks/useNotificationCreation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useMessaging } from '@/hooks/useMessaging';
@@ -27,6 +28,7 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
   const { user } = useAuth();
   const { users, loading: usersLoading } = useUsers();
   const { conversations, messages, sendMessage, createConversation, fetchMessages } = useMessaging();
+  const { createMentionNotifications } = useNotificationCreation();
   const { workspaces, projects } = useUnifiedData();
   
   const [selectedThread, setSelectedThread] = useState('');
@@ -67,6 +69,15 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
         conversation.thread_id,
         conversation.workspace_id || undefined
       );
+      
+      // Create notifications for mentioned users
+      await createMentionNotifications(
+        newMessage.trim(),
+        conversation.thread_id,
+        conversation.thread_type,
+        conversation.workspace_id || undefined
+      );
+      
       setNewMessage('');
     } catch (err) {
       console.error('Failed to send message:', err);
@@ -105,6 +116,14 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
           newMessageContent,
           conversation.thread_type,
           conversation.thread_id,
+          conversation.workspace_id || undefined
+        );
+        
+        // Create notifications for mentioned users
+        await createMentionNotifications(
+          newMessageContent.trim(),
+          conversation.thread_id,
+          conversation.thread_type,
           conversation.workspace_id || undefined
         );
       }

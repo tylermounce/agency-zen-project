@@ -16,6 +16,7 @@ import { MentionHighlight } from '@/components/MentionHighlight';
 import { useMessaging } from '@/hooks/useMessaging';
 import { useUsers } from '@/hooks/useUsers';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNotificationCreation } from '@/hooks/useNotificationCreation';
 import { useUnifiedData } from '@/hooks/useUnifiedData';
 
 interface MessagingPanelProps {
@@ -27,6 +28,7 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
   const { user } = useAuth();
   const { users } = useUsers();
   const { conversations, messages, sendMessage, createConversation, fetchMessages, getProjectThreadId } = useMessaging();
+  const { createMentionNotifications } = useNotificationCreation();
   const { getWorkspace, mapWorkspaceIdToName, getWorkspaceProjects } = useUnifiedData();
   const [selectedConversation, setSelectedConversation] = useState('');
   const [newMessage, setNewMessage] = useState('');
@@ -75,6 +77,15 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
         conversation.thread_id,
         conversation.workspace_id || undefined
       );
+      
+      // Create notifications for mentioned users
+      await createMentionNotifications(
+        newMessage.trim(),
+        conversation.thread_id,
+        conversation.thread_type,
+        conversation.workspace_id || undefined
+      );
+      
       setNewMessage('');
     } catch (err) {
       // Message send failed - could implement error handling UI here

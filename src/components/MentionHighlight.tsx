@@ -17,7 +17,7 @@ export const MentionHighlight: React.FC<MentionHighlightProps> = ({ content, cla
           return (
             <span
               key={index}
-              className="bg-blue-100 text-blue-800 px-1 py-0.5 rounded font-medium"
+              className="bg-primary/10 text-primary px-1 py-0.5 rounded font-medium"
             >
               {part}
             </span>
