@@ -96,7 +96,7 @@ export const useUserMentions = (workspaceId?: string) => {
     if (mentionMatch) {
       const mentionStart = mentionMatch.index || 0;
       const beforeMention = currentText.substring(0, mentionStart);
-      const userMention = `@${user.full_name || user.email} `;
+      const userMention = `@${user.full_name || 'Unknown User'} `;
       const newText = beforeMention + userMention + afterCursor;
       const newCursorPosition = beforeMention.length + userMention.length;
       

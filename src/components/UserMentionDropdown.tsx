@@ -47,13 +47,11 @@ export const UserMentionDropdown: React.FC<UserMentionDropdownProps> = ({
               </Avatar>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium truncate">
-                  {user.full_name || user.email}
+                  {user.full_name || 'Unknown User'}
                 </div>
-                {user.full_name && user.email && (
-                  <div className="text-xs text-muted-foreground truncate">
-                    {user.email}
-                  </div>
-                )}
+                <div className="text-xs text-muted-foreground truncate">
+                  {user.email}
+                </div>
               </div>
             </div>
           ))}
