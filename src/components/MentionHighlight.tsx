@@ -6,8 +6,8 @@ interface MentionHighlightProps {
 }
 
 export const MentionHighlight: React.FC<MentionHighlightProps> = ({ content, className = '' }) => {
-  // Split the content by mentions - match @username (including spaces and special chars until word boundary)
-  const parts = content.split(/(@\S+(?:\s+\S+)*?)(?=\s|$|@)/g);
+  // Split the content by mentions - match @username with full names including spaces
+  const parts = content.split(/(@[^@]+?)(?=\s|$|@)/g);
 
   return (
     <span className={className}>

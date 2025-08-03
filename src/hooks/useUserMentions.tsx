@@ -65,7 +65,8 @@ export const useUserMentions = (workspaceId?: string) => {
   // Handle text input changes to detect @ mentions
   const handleTextChange = useCallback((text: string, cursorPosition: number) => {
     const beforeCursor = text.substring(0, cursorPosition);
-    const mentionMatch = beforeCursor.match(/@(\w*)$/);
+    // Match @ followed by any characters (including spaces) until we hit a space or end of string
+    const mentionMatch = beforeCursor.match(/@([^@\s]*)$/);
     
     if (mentionMatch) {
       const query = mentionMatch[1];
@@ -87,12 +88,13 @@ export const useUserMentions = (workspaceId?: string) => {
   const handleUserSelect = useCallback((user: User, currentText: string, cursorPosition: number) => {
     const beforeCursor = currentText.substring(0, cursorPosition);
     const afterCursor = currentText.substring(cursorPosition);
-    const mentionMatch = beforeCursor.match(/@(\w*)$/);
+    // Match @ followed by any characters until we hit a space or end
+    const mentionMatch = beforeCursor.match(/@([^@\s]*)$/);
     
     if (mentionMatch) {
       const mentionStart = mentionMatch.index || 0;
       const beforeMention = currentText.substring(0, mentionStart);
-      // Use the user's full name for the mention, replacing any partial text
+      // Use the user's full name for the mention, with proper spacing
       const userMention = `@${user.full_name || 'Unknown User'} `;
       const newText = beforeMention + userMention + afterCursor;
       const newCursorPosition = beforeMention.length + userMention.length;

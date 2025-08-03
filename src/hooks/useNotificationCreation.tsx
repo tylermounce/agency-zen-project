@@ -13,15 +13,15 @@ export const useNotificationCreation = () => {
   ) => {
     if (!user) return;
 
-    // Extract mentioned usernames from content
-    const mentionPattern = /@([^@\s]+)/g;
+    // Extract mentioned usernames from content - match full names with spaces
+    const mentionPattern = /@([^@]+?)(?=\s|$)/g;
     const mentions = content.match(mentionPattern);
     
     if (!mentions || mentions.length === 0) return;
 
     try {
       // Get profiles for mentioned users
-      const mentionedNames = mentions.map(mention => mention.substring(1)); // Remove @ symbol
+      const mentionedNames = mentions.map(mention => mention.substring(1).trim()); // Remove @ symbol and trim
       
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
@@ -33,9 +33,8 @@ export const useNotificationCreation = () => {
         return;
       }
 
-      // Create notifications for mentioned users
+      // Create notifications for mentioned users (including self-mentions)
       for (const profile of profiles || []) {
-        if (profile.id === user.id) continue; // Don't notify self
 
         await supabase
           .from('notifications')
