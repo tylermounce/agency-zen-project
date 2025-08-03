@@ -47,6 +47,36 @@ export type Database = {
         }
         Relationships: []
       }
+      message_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_size: number
+          file_type: string
+          file_url: string
+          id: string
+          message_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_size: number
+          file_type: string
+          file_url: string
+          id?: string
+          message_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_size?: number
+          file_type?: string
+          file_url?: string
+          id?: string
+          message_id?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
@@ -76,6 +106,48 @@ export type Database = {
           thread_id?: string
           thread_type?: string
           updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_read: boolean
+          message_id: string
+          sender_name: string
+          thread_id: string
+          thread_type: string
+          updated_at: string
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message_id: string
+          sender_name: string
+          thread_id: string
+          thread_type: string
+          updated_at?: string
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message_id?: string
+          sender_name?: string
+          thread_id?: string
+          thread_type?: string
+          updated_at?: string
+          user_id?: string
           workspace_id?: string | null
         }
         Relationships: []
