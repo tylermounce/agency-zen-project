@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { TextareaWithMentions } from '@/components/TextareaWithMentions';
+import { FileUploadArea } from '@/components/FileUploadArea';
 import { MentionHighlight } from '@/components/MentionHighlight';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Search, Inbox, MessageSquare, Hash, User, ArrowLeft, Plus } from 'lucide-react';
@@ -41,6 +42,7 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
   const [selectedProject, setSelectedProject] = useState('');
   const [selectedWorkspace, setSelectedWorkspace] = useState('');
   const [newMessageContent, setNewMessageContent] = useState('');
+  const [attachedFiles, setAttachedFiles] = useState<any[]>([]);
 
   const workspaceNames = workspaces.map(w => w.name);
   const projectTitles = projects.map(p => p.title);
@@ -199,8 +201,7 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
                   key={conversation.id}
                   onClick={() => {
                     setSelectedThread(conversation.thread_id);
-                    // Mark as read after a small delay to let user see the messages first
-                    setTimeout(() => markThreadAsRead(conversation.thread_id), 1000);
+                    markThreadAsRead(conversation.thread_id);
                   }}
                   className={`p-3 rounded-lg cursor-pointer transition-colors ${
                     selectedThread === conversation.thread_id
@@ -330,23 +331,34 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
               </div>
               
               <div className="bg-white border-t border-gray-100 p-4">
-                <div className="flex space-x-2">
-                  <TextareaWithMentions
-                    placeholder="Type your message... Use @ to mention someone"
-                    value={newMessage}
-                    onChange={setNewMessage}
-                    className="min-h-[60px] resize-none"
-                    workspaceId={currentConversation?.workspace_id}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage();
-                      }
-                    }}
-                  />
-                  <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
-                    <Send className="w-4 h-4" />
-                  </Button>
+                <div className="space-y-3">
+                  <div className="flex space-x-2">
+                    <div className="flex-1">
+                      <TextareaWithMentions
+                        placeholder="Type your message... Use @ to mention someone"
+                        value={newMessage}
+                        onChange={setNewMessage}
+                        className="min-h-[60px] resize-none w-full"
+                        workspaceId={currentConversation?.workspace_id}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSendMessage();
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="flex flex-col space-y-2">
+                      <FileUploadArea
+                        onFilesChange={setAttachedFiles}
+                        attachedFiles={attachedFiles}
+                        className="shrink-0"
+                      />
+                      <Button size="icon" onClick={handleSendMessage} disabled={!newMessage.trim()}>
+                        <Send className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </>

@@ -55,7 +55,7 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
         .from('messages')
         .select('*')
         .eq('thread_id', threadId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setMessages(data || []);
