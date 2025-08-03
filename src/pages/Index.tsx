@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,7 +32,7 @@ const Index = () => {
   const { users } = useUsers();
   const { isAdmin } = useUserRole();
   const navigate = useNavigate();
-  const [selectedWorkspace, setSelectedWorkspace] = useState('client-1');
+  const [selectedWorkspace, setSelectedWorkspace] = useState('');
   const [activeTab, setActiveTab] = useState('channel');
   const [showMyTasks, setShowMyTasks] = useState(false);
   const [showMasterInbox, setShowMasterInbox] = useState(false);
@@ -54,7 +54,28 @@ const Index = () => {
     tasks: taskCounts[workspace.id]?.active || 0
   }));
 
+  // Auto-select first workspace if none selected and workspaces are available
+  useEffect(() => {
+    if (!selectedWorkspace && workspacesWithCounts.length > 0) {
+      setSelectedWorkspace(workspacesWithCounts[0].id);
+    }
+  }, [selectedWorkspace, workspacesWithCounts]);
+
   const currentWorkspace = workspacesWithCounts.find(w => w.id === selectedWorkspace);
+
+  // Don't render main content if no workspace is selected
+  if (!selectedWorkspace || !currentWorkspace) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-4">Please select a workspace to continue</h2>
+          {workspacesWithCounts.length === 0 && (
+            <p className="text-gray-600">No workspaces available. Please contact your administrator.</p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   const handleProjectClick = (projectId: string, projectTitle: string) => {
     setProjectFilter(projectTitle);

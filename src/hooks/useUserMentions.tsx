@@ -65,13 +65,16 @@ export const useUserMentions = (workspaceId?: string) => {
 
   // Handle text input changes to detect @ mentions
   const handleTextChange = useCallback((text: string, cursorPosition: number) => {
+    console.log('useUserMentions: Text changed', { text, cursorPosition, workspaceId });
     const beforeCursor = text.substring(0, cursorPosition);
     const mentionMatch = beforeCursor.match(/@(\w*)$/);
+    console.log('useUserMentions: Mention match', { beforeCursor, mentionMatch });
     
     if (mentionMatch) {
       const query = mentionMatch[1];
       const position = mentionMatch.index || 0;
       const suggestions = filterUsers(query);
+      console.log('useUserMentions: Setting mention state', { query, position, suggestions, workspaceUsers });
       
       setMentionState({
         isActive: true,
@@ -82,7 +85,7 @@ export const useUserMentions = (workspaceId?: string) => {
     } else {
       setMentionState(prev => ({ ...prev, isActive: false }));
     }
-  }, [filterUsers]);
+  }, [filterUsers, workspaceId, workspaceUsers]);
 
   // Handle user selection from mentions
   const handleUserSelect = useCallback((user: User, currentText: string, cursorPosition: number) => {

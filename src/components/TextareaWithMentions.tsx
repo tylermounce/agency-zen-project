@@ -29,10 +29,11 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     const cursorPosition = e.target.selectionStart;
+    console.log('TextareaWithMentions: Input changed', { newValue, cursorPosition, workspaceId });
     
     onChange(newValue);
     handleTextChange(newValue, cursorPosition);
-  }, [onChange, handleTextChange]);
+  }, [onChange, handleTextChange, workspaceId]);
 
   const handleKeyDownInternal = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (mentionState.isActive) {
