@@ -25,7 +25,7 @@ export const UserMentionDropdown: React.FC<UserMentionDropdownProps> = ({
 
   return (
     <div
-      className="absolute z-50 bg-background border border-border rounded-lg shadow-lg max-w-xs w-64"
+      className="fixed z-50 bg-background border border-border rounded-lg shadow-lg max-w-xs w-64"
       style={{
         top: position.top,
         left: position.left
