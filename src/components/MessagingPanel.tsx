@@ -5,13 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Search, Plus, MessageSquare, Paperclip } from 'lucide-react';
+import { Send, Search, Plus, MessageSquare } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TextareaWithMentions } from '@/components/TextareaWithMentions';
+import { FileUploadArea } from '@/components/FileUploadArea';
 import { useMessaging } from '@/hooks/useMessaging';
 import { useUsers } from '@/hooks/useUsers';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,6 +29,7 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
   const { getWorkspace, mapWorkspaceIdToName, getWorkspaceProjects } = useUnifiedData();
   const [selectedConversation, setSelectedConversation] = useState('');
   const [newMessage, setNewMessage] = useState('');
+  const [attachedFiles, setAttachedFiles] = useState<any[]>([]);
   
   // New conversation dialog state - simplified to just project selection
   const [newConversationDialog, setNewConversationDialog] = useState(false);
@@ -119,8 +120,8 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
       {/* Conversations List */}
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between mb-4">
             <CardTitle className="flex items-center">
               <MessageSquare className="w-5 h-5 mr-2" />
               Project Messages
@@ -171,7 +172,7 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
         </CardHeader>
         <CardContent className="p-0">
           <ScrollArea className="h-[400px]">
-            <div className="space-y-1 p-4">
+            <div className="space-y-2 p-4">
               {workspaceConversations.map((conversation) => (
                 <div
                   key={conversation.id}
@@ -182,7 +183,7 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
                       : 'hover:bg-gray-50'
                   }`}
                 >
-                  <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-start justify-between mb-3">
                     <h4 className="font-medium text-sm truncate">{conversation.title}</h4>
                     <Badge variant="outline" className="text-xs">
                       Project
@@ -216,8 +217,8 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
                 </div>
               ))}
               {workspaceConversations.length === 0 && (
-                <div className="p-4 text-center text-gray-500">
-                  <p>No project conversations yet</p>
+                <div className="p-6 text-center text-gray-500">
+                  <p className="mb-2">No project conversations yet</p>
                   <p className="text-sm">Select a project above to start messaging</p>
                 </div>
               )}
@@ -300,27 +301,33 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
                 </div>
               </ScrollArea>
               
-              <div className="flex space-x-2">
-                <TextareaWithMentions
-                  value={newMessage}
-                  onChange={setNewMessage}
-                  placeholder="Message this project team... Use @ to mention someone"
-                  className="min-h-[60px] resize-none"
-                  workspaceId={workspaceId}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }
-                  }}
-                />
-                <div className="flex flex-col space-y-2">
-                  <Button size="icon" variant="outline">
-                    <Paperclip className="w-4 h-4" />
-                  </Button>
-                  <Button size="icon" onClick={handleSendMessage} disabled={!newMessage.trim()}>
-                    <Send className="w-4 h-4" />
-                  </Button>
+              <div className="space-y-3">
+                <div className="flex space-x-2">
+                  <div className="flex-1">
+                    <TextareaWithMentions
+                      value={newMessage}
+                      onChange={setNewMessage}
+                      placeholder="Message this project team... Use @ to mention someone"
+                      className="min-h-[60px] resize-none w-full"
+                      workspaceId={currentWorkspaceName || workspaceId}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="flex flex-col space-y-2">
+                    <FileUploadArea
+                      onFilesChange={setAttachedFiles}
+                      attachedFiles={attachedFiles}
+                      className="shrink-0"
+                    />
+                    <Button size="icon" onClick={handleSendMessage} disabled={!newMessage.trim()}>
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>
