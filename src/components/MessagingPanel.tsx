@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TextareaWithMentions } from '@/components/TextareaWithMentions';
 import { FileUploadArea } from '@/components/FileUploadArea';
+import { MentionHighlight } from '@/components/MentionHighlight';
 import { useMessaging } from '@/hooks/useMessaging';
 import { useUsers } from '@/hooks/useUsers';
 import { useAuth } from '@/contexts/AuthContext';
@@ -286,7 +287,7 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
                                 ? 'bg-blue-500 text-white ml-auto' 
                                 : 'bg-gray-50'
                             }`}>
-                              {message.content}
+                              <MentionHighlight content={message.content} />
                             </div>
                           </div>
                           {isCurrentUser && (
@@ -309,7 +310,7 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
                       onChange={setNewMessage}
                       placeholder="Message this project team... Use @ to mention someone"
                       className="min-h-[60px] resize-none w-full"
-                      workspaceId={currentWorkspaceName || workspaceId}
+                      workspaceId={workspaceId}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();

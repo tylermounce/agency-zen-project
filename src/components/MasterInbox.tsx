@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { TextareaWithMentions } from '@/components/TextareaWithMentions';
+import { MentionHighlight } from '@/components/MentionHighlight';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Search, Inbox, MessageSquare, Hash, User, ArrowLeft, Plus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -271,7 +273,7 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
                                   ? 'bg-blue-500 text-white ml-auto' 
                                   : 'bg-gray-50'
                               }`}>
-                                {message.content}
+                                <MentionHighlight content={message.content} />
                               </div>
                             </div>
                             {isCurrentUser && (
@@ -289,11 +291,12 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
               
               <div className="bg-white border-t border-gray-100 p-4">
                 <div className="flex space-x-2">
-                  <Textarea
-                    placeholder="Type your message..."
+                  <TextareaWithMentions
+                    placeholder="Type your message... Use @ to mention someone"
                     value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
+                    onChange={setNewMessage}
                     className="min-h-[60px] resize-none"
+                    workspaceId={currentConversation?.workspace_id}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
@@ -395,11 +398,12 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Message</label>
-              <Textarea
-                placeholder="Type your message..."
+              <TextareaWithMentions
+                placeholder="Type your message... Use @ to mention someone"
                 value={newMessageContent}
-                onChange={(e) => setNewMessageContent(e.target.value)}
+                onChange={setNewMessageContent}
                 className="min-h-[100px]"
+                workspaceId={messageType === 'project' ? selectedWorkspace : undefined}
               />
             </div>
           </div>
