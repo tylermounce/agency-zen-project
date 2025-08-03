@@ -65,8 +65,8 @@ export const useUserMentions = (workspaceId?: string) => {
   // Handle text input changes to detect @ mentions
   const handleTextChange = useCallback((text: string, cursorPosition: number) => {
     const beforeCursor = text.substring(0, cursorPosition);
-    // Match @ followed by any characters (including spaces) until we hit a space or end of string
-    const mentionMatch = beforeCursor.match(/@([^@\s]*)$/);
+    // Match @ followed by any characters until we hit another @ or end of string
+    const mentionMatch = beforeCursor.match(/@([^@]*)$/);
     
     if (mentionMatch) {
       const query = mentionMatch[1];
@@ -88,8 +88,8 @@ export const useUserMentions = (workspaceId?: string) => {
   const handleUserSelect = useCallback((user: User, currentText: string, cursorPosition: number) => {
     const beforeCursor = currentText.substring(0, cursorPosition);
     const afterCursor = currentText.substring(cursorPosition);
-    // Match @ followed by any characters until we hit a space or end
-    const mentionMatch = beforeCursor.match(/@([^@\s]*)$/);
+    // Match @ followed by any characters until we hit another @ or end of string
+    const mentionMatch = beforeCursor.match(/@([^@]*)$/);
     
     if (mentionMatch) {
       const mentionStart = mentionMatch.index || 0;
