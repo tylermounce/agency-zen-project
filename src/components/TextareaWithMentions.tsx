@@ -127,7 +127,7 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
         value={value}
         onChange={handleInputChange}
         onKeyDown={handleKeyDownInternal}
-        placeholder={placeholder}
+        placeholder=""
         className={`${className} relative z-10 bg-transparent caret-foreground text-transparent selection:bg-primary/20`}
         disabled={disabled}
       />
