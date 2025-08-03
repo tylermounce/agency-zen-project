@@ -57,8 +57,7 @@ export const useUserMentions = (workspaceId?: string) => {
     return workspaceUsers
       .filter(user => {
         const fullNameMatch = user.full_name?.toLowerCase().includes(lowercaseQuery);
-        const emailMatch = user.email?.toLowerCase().includes(lowercaseQuery);
-        return fullNameMatch || emailMatch;
+        return fullNameMatch;
       })
       .slice(0, 5);
   }, [workspaceUsers]);

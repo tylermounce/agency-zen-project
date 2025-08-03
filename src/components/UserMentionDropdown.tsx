@@ -49,9 +49,6 @@ export const UserMentionDropdown: React.FC<UserMentionDropdownProps> = ({
                 <div className="text-sm font-medium truncate">
                   {user.full_name || 'Unknown User'}
                 </div>
-                <div className="text-xs text-muted-foreground truncate">
-                  {user.email}
-                </div>
               </div>
             </div>
           ))}
