@@ -5,46 +5,57 @@ import { useAuth } from '@/contexts/AuthContext';
 interface Notification {
   id: string;
   user_id: string;
-  message_id: string;
+  message_id: string | null;
   content: string;
   sender_name: string;
   thread_id: string;
   thread_type: string;
   workspace_id: string | null;
   is_read: boolean;
+  notification_type: string;
   created_at: string;
-  updated_at: string;
 }
 
-export const useNotifications = () => {
+export const useNotifications = (workspaceId?: string) => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
+  // Fetch notifications for the current user
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
-    
+
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('notifications')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
+      // Filter by workspace if specified
+      if (workspaceId) {
+        query = query.eq('workspace_id', workspaceId);
+      }
+
+      const { data, error } = await query;
+
       if (error) throw error;
 
-      const notificationData = data || [];
-      setNotifications(notificationData);
-      setUnreadCount(notificationData.filter(n => !n.is_read).length);
-    } catch (err) {
-      console.error('Error fetching notifications:', err);
+      setNotifications(data || []);
+      
+      // Count unread notifications
+      const unreadNotifications = (data || []).filter(n => !n.is_read);
+      setUnreadCount(unreadNotifications.length);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, workspaceId]);
 
+  // Mark a notification as read
   const markAsRead = useCallback(async (notificationId: string) => {
     try {
       const { error } = await supabase
@@ -56,24 +67,97 @@ export const useNotifications = () => {
 
       // Update local state
       setNotifications(prev => 
-        prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
+        prev.map(n => 
+          n.id === notificationId ? { ...n, is_read: true } : n
+        )
       );
+      
       setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (err) {
-      console.error('Error marking notification as read:', err);
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
     }
   }, []);
 
+  // Mark all notifications as read
+  const markAllAsRead = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      let query = supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('user_id', user.id)
+        .eq('is_read', false);
+
+      // Filter by workspace if specified
+      if (workspaceId) {
+        query = query.eq('workspace_id', workspaceId);
+      }
+
+      const { error } = await query;
+
+      if (error) throw error;
+
+      // Update local state
+      setNotifications(prev => 
+        prev.map(n => ({ ...n, is_read: true }))
+      );
+      
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
+  }, [user, workspaceId]);
+
+  // Delete a notification
+  const deleteNotification = useCallback(async (notificationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', notificationId);
+
+      if (error) throw error;
+
+      // Update local state
+      const deletedNotification = notifications.find(n => n.id === notificationId);
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      
+      if (deletedNotification && !deletedNotification.is_read) {
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
+  }, [notifications]);
+
+  // Get notifications by type
+  const getNotificationsByType = useCallback((type: string) => {
+    return notifications.filter(n => n.notification_type === type);
+  }, [notifications]);
+
+  // Get unread notifications
+  const getUnreadNotifications = useCallback(() => {
+    return notifications.filter(n => !n.is_read);
+  }, [notifications]);
+
+  // Keep legacy functions for compatibility
   const markThreadAsRead = useCallback(async (threadId: string) => {
     if (!user) return;
     
     try {
-      const { error } = await supabase
+      let query = supabase
         .from('notifications')
         .update({ is_read: true })
         .eq('user_id', user.id)
         .eq('thread_id', threadId)
         .eq('is_read', false);
+
+      if (workspaceId) {
+        query = query.eq('workspace_id', workspaceId);
+      }
+
+      const { error } = await query;
 
       if (error) throw error;
 
@@ -93,10 +177,10 @@ export const useNotifications = () => {
         ).length;
         return Math.max(0, prev - threadUnreadCount);
       });
-    } catch (err) {
-      console.error('Error marking thread notifications as read:', err);
+    } catch (error) {
+      console.error('Error marking thread notifications as read:', error);
     }
-  }, [user, notifications]);
+  }, [user, workspaceId, notifications]);
 
   const getUnreadCountForThread = useCallback((threadId: string) => {
     return notifications.filter(n => n.thread_id === threadId && !n.is_read).length;
@@ -110,47 +194,58 @@ export const useNotifications = () => {
   useEffect(() => {
     if (!user) return;
 
-    const channel = supabase
+    const notificationsChannel = supabase
       .channel('notifications-changes')
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'notifications',
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          const newNotification = payload.new as Notification;
-          setNotifications(prev => [newNotification, ...prev]);
-          setUnreadCount(prev => prev + 1);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`
-        },
-        () => {
-          // Refetch notifications on updates
-          fetchNotifications();
+          console.log('Notification change:', payload);
+          
+          if (payload.eventType === 'INSERT') {
+            const newNotification = payload.new as Notification;
+            
+            // Only add if it matches the current workspace filter
+            if (!workspaceId || newNotification.workspace_id === workspaceId) {
+              setNotifications(prev => [newNotification, ...prev]);
+              if (!newNotification.is_read) {
+                setUnreadCount(prev => prev + 1);
+              }
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedNotification = payload.new as Notification;
+            setNotifications(prev => 
+              prev.map(n => 
+                n.id === updatedNotification.id ? updatedNotification : n
+              )
+            );
+          } else if (payload.eventType === 'DELETE') {
+            const deletedId = payload.old.id;
+            const deletedNotification = notifications.find(n => n.id === deletedId);
+            setNotifications(prev => prev.filter(n => n.id !== deletedId));
+            
+            if (deletedNotification && !deletedNotification.is_read) {
+              setUnreadCount(prev => Math.max(0, prev - 1));
+            }
+          }
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(notificationsChannel);
     };
-  }, [user, fetchNotifications]);
+  }, [user, workspaceId, notifications]);
 
+  // Fetch notifications on mount and when dependencies change
   useEffect(() => {
-    if (user) {
-      fetchNotifications();
-    }
-  }, [user, fetchNotifications]);
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   return {
     notifications,
@@ -158,6 +253,10 @@ export const useNotifications = () => {
     loading,
     fetchNotifications,
     markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    getNotificationsByType,
+    getUnreadNotifications,
     markThreadAsRead,
     getUnreadCountForThread,
     hasUnreadInThread
