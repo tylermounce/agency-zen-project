@@ -46,6 +46,8 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
     const newValue = e.target.value;
     const cursorPosition = e.target.selectionStart;
     
+    console.log('📝 TextareaWithMentions input change:', { newValue, cursorPosition });
+    
     onChange(newValue);
     handleTextChange(newValue, cursorPosition);
   }, [onChange, handleTextChange]);
@@ -86,7 +88,12 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
   }, [mentionState, closeMentions, handleUserSelect, value, onChange, onKeyDown]);
 
   const handleUserSelectFromDropdown = useCallback((user: any) => {
+    console.log('🎯 User selected from dropdown:', { user, currentValue: value, currentCursor: textareaRef.current?.selectionStart });
+    
     const result = handleUserSelect(user, value, textareaRef.current?.selectionStart || 0);
+    
+    console.log('🎯 User select result:', result);
+    
     onChange(result.text);
     
     // Set cursor position and focus after state update

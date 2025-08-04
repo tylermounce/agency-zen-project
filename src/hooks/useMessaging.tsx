@@ -80,9 +80,13 @@ export const useMessaging = () => {
   const sendMessage = async (content: string, threadType: string, threadId: string, workspaceId?: string) => {
     if (!user || !content.trim()) return;
 
+    console.log('📤 sendMessage called with:', { content, threadType, threadId, workspaceId });
+
     try {
       // Extract mentioned user IDs from content
       const { mentionedUserIds } = await extractMentionsFromContent(content.trim());
+
+      console.log('📤 Extracted mentions:', mentionedUserIds);
 
       // Insert the message and get the returned data (including the ID)
       const { data: messageData, error: messageError } = await supabase
@@ -100,8 +104,12 @@ export const useMessaging = () => {
 
       if (messageError) throw messageError;
 
+      console.log('📤 Message saved successfully:', messageData);
+
       // Create notifications for mentioned users using the actual message ID
       if (mentionedUserIds.length > 0 && messageData) {
+        console.log('📤 Creating notifications for mentioned users:', mentionedUserIds);
+        
         await createMentionNotifications(
           mentionedUserIds,
           content.trim(),
@@ -110,6 +118,10 @@ export const useMessaging = () => {
           messageData.id, // Pass the actual message ID
           workspaceId
         );
+        
+        console.log('📤 Notifications created successfully');
+      } else {
+        console.log('📤 No mentions to notify or no message data');
       }
 
       // Update conversation last message time

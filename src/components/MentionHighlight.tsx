@@ -11,21 +11,31 @@ export const MentionHighlight: React.FC<MentionHighlightProps> = ({ content, cla
 
   useEffect(() => {
     const processMentions = async () => {
+      console.log('🎨 MentionHighlight processing content:', content);
+      
       // Extract user IDs from @{userId:actual-uuid} format and replace with display names
       const mentionPattern = /@\{userId:([^}]+)\}/g;
       const mentions = [...content.matchAll(mentionPattern)];
       
+      console.log('🎨 Found mentions to highlight:', mentions);
+      
       if (mentions.length === 0) {
+        console.log('🎨 No mentions to process, using original content');
         setProcessedContent(content);
         return;
       }
 
       try {
         const userIds = mentions.map(match => match[1]);
+        
+        console.log('🎨 Looking up profiles for user IDs:', userIds);
+        
         const { data: profiles } = await supabase
           .from('profiles')
           .select('id, full_name')
           .in('id', userIds);
+
+        console.log('🎨 Profile lookup result:', profiles);
 
         let result = content;
         
@@ -34,9 +44,13 @@ export const MentionHighlight: React.FC<MentionHighlightProps> = ({ content, cla
           const userId = match[1];
           const profile = profiles?.find(p => p.id === userId);
           const displayName = profile?.full_name || 'Unknown User';
+          
+          console.log(`🎨 Replacing ${match[0]} with @${displayName}`);
+          
           result = result.replace(match[0], `@${displayName}`);
         });
 
+        console.log('🎨 Final processed content:', result);
         setProcessedContent(result);
       } catch (error) {
         console.error('Error processing mentions:', error);

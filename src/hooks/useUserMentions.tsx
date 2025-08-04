@@ -64,14 +64,20 @@ export const useUserMentions = (workspaceId?: string) => {
 
   // Handle text input changes to detect @ mentions
   const handleTextChange = useCallback((text: string, cursorPosition: number) => {
+    console.log('🔍 handleTextChange called:', { text, cursorPosition, workspaceId });
+    
     const beforeCursor = text.substring(0, cursorPosition);
     // Match @ followed by any characters until we hit another @ or end of string
     const mentionMatch = beforeCursor.match(/@([^@]*)$/);
+    
+    console.log('🔍 Mention detection:', { beforeCursor, mentionMatch });
     
     if (mentionMatch) {
       const query = mentionMatch[1];
       const position = mentionMatch.index || 0;
       const suggestions = filterUsers(query);
+      
+      console.log('✅ Mention detected:', { query, position, suggestions: suggestions.map(s => s.full_name) });
       
       setMentionState({
         isActive: true,
@@ -80,16 +86,21 @@ export const useUserMentions = (workspaceId?: string) => {
         suggestions
       });
     } else {
+      console.log('❌ No mention detected, deactivating');
       setMentionState(prev => ({ ...prev, isActive: false }));
     }
-  }, [filterUsers]);
+  }, [filterUsers, workspaceId]);
 
   // Handle user selection from mentions
   const handleUserSelect = useCallback((user: User, currentText: string, cursorPosition: number) => {
+    console.log('🔍 handleUserSelect called:', { user: { id: user.id, full_name: user.full_name }, currentText, cursorPosition });
+    
     const beforeCursor = currentText.substring(0, cursorPosition);
     const afterCursor = currentText.substring(cursorPosition);
     // Match @ followed by any characters until we hit another @ or end of string
     const mentionMatch = beforeCursor.match(/@([^@]*)$/);
+    
+    console.log('🔍 User select mention detection:', { beforeCursor, afterCursor, mentionMatch });
     
     if (mentionMatch) {
       const mentionStart = mentionMatch.index || 0;
@@ -99,6 +110,15 @@ export const useUserMentions = (workspaceId?: string) => {
       const newText = beforeMention + userMention + afterCursor;
       const newCursorPosition = beforeMention.length + userMention.length;
       
+      console.log('✅ Building user mention:', {
+        mentionStart,
+        beforeMention,
+        userMention,
+        afterCursor,
+        newText,
+        newCursorPosition
+      });
+      
       setMentionState(prev => ({ ...prev, isActive: false }));
       
       return {
@@ -107,6 +127,7 @@ export const useUserMentions = (workspaceId?: string) => {
       };
     }
     
+    console.log('❌ No mention match found, returning unchanged');
     return { text: currentText, cursorPosition };
   }, []);
 
