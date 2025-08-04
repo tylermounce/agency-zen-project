@@ -10,6 +10,7 @@ export const useNotificationCreation = () => {
     content: string,
     threadId: string,
     threadType: string,
+    messageId: string,
     workspaceId?: string
   ) => {
     if (!user || !mentionedUserIds.length) return;
@@ -21,7 +22,7 @@ export const useNotificationCreation = () => {
           .from('notifications')
           .insert({
             user_id: userId,
-            message_id: crypto.randomUUID(), // Placeholder for now
+            message_id: messageId, // Use actual message ID
             content: `${user.email || 'Someone'} mentioned you: ${content.substring(0, 100)}...`,
             sender_name: user.email || 'Unknown',
             thread_id: threadId,

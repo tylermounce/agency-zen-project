@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMentionUtils } from '@/hooks/useMentionUtils';
+import { useNotificationCreation } from '@/hooks/useNotificationCreation';
 
 interface Message {
   id: string;
@@ -28,6 +29,7 @@ interface Conversation {
 export const useMessaging = () => {
   const { user } = useAuth();
   const { extractMentionsFromContent } = useMentionUtils();
+  const { createMentionNotifications } = useNotificationCreation();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<{ [threadId: string]: Message[] }>({});
   const [loading, setLoading] = useState(false);
@@ -82,7 +84,8 @@ export const useMessaging = () => {
       // Extract mentioned user IDs from content
       const { mentionedUserIds } = await extractMentionsFromContent(content.trim());
 
-      const { error } = await supabase
+      // Insert the message and get the returned data (including the ID)
+      const { data: messageData, error: messageError } = await supabase
         .from('messages')
         .insert({
           sender_id: user.id,
@@ -91,9 +94,23 @@ export const useMessaging = () => {
           thread_id: threadId,
           workspace_id: workspaceId || null,
           mentions: mentionedUserIds
-        });
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (messageError) throw messageError;
+
+      // Create notifications for mentioned users using the actual message ID
+      if (mentionedUserIds.length > 0 && messageData) {
+        await createMentionNotifications(
+          mentionedUserIds,
+          content.trim(),
+          threadId,
+          threadType,
+          messageData.id, // Pass the actual message ID
+          workspaceId
+        );
+      }
 
       // Update conversation last message time
       await supabase
@@ -105,8 +122,8 @@ export const useMessaging = () => {
       await fetchMessages(threadId);
       await fetchConversations();
       
-      // Return mentioned user IDs for notification creation
-      return { mentionedUserIds };
+      // Return the message data and mentioned user IDs
+      return { messageData, mentionedUserIds };
     } catch (err) {
       console.error('Error sending message:', err);
       throw err;
