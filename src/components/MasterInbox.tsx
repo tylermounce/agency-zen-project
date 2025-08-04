@@ -220,7 +220,7 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
                       <div className="relative">
                         {getThreadIcon(conversation.thread_type)}
                         {hasUnreadInThread(conversation.thread_id) && (
-                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full"></div>
+                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white"></div>
                         )}
                       </div>
                       <h4 className="font-medium text-sm truncate">{conversation.title}</h4>

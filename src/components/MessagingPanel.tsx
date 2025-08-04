@@ -206,7 +206,7 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
                     <div className="flex items-center gap-2">
                       <h4 className="font-medium text-sm truncate">{conversation.title}</h4>
                       {hasUnreadInThread(conversation.thread_id) && (
-                        <div className="w-2 h-2 bg-primary rounded-full"></div>
+                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                       )}
                       {getUnreadCountForThread(conversation.thread_id) > 0 && (
                         <Badge variant="destructive" className="text-xs px-1 py-0 min-w-[16px] h-4">
