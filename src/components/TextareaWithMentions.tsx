@@ -2,7 +2,6 @@ import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { UserMentionDropdown } from '@/components/UserMentionDropdown';
 import { useUserMentions } from '@/hooks/useUserMentions';
-import { MentionHighlight } from '@/components/MentionHighlight';
 
 interface TextareaWithMentionsProps {
   value: string;
@@ -27,14 +26,29 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const { mentionState, handleTextChange, handleUserSelect, closeMentions } = useUserMentions(workspaceId);
 
+  // Convert stored format to display format for showing in textarea
+  const getDisplayValue = useCallback((text: string) => {
+    // Replace @{userId:uuid} with @DisplayName for display purposes
+    return text.replace(/@\{userId:([^}]+)\}/g, (match, userId) => {
+      // In a real implementation, you'd want to cache user display names
+      // For now, we'll show a placeholder that gets replaced by MentionHighlight
+      return match; // Keep the original format for now
+    });
+  }, []);
+
+  // Convert display format back to storage format
+  const getStorageValue = useCallback((text: string) => {
+    // This should already be in the correct format from handleUserSelect
+    return text;
+  }, []);
+
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     const cursorPosition = e.target.selectionStart;
-    console.log('TextareaWithMentions: Input changed', { newValue, cursorPosition, workspaceId });
     
     onChange(newValue);
     handleTextChange(newValue, cursorPosition);
-  }, [onChange, handleTextChange, workspaceId]);
+  }, [onChange, handleTextChange]);
 
   const handleKeyDownInternal = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (mentionState.isActive) {
@@ -90,19 +104,15 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
       const textarea = textareaRef.current;
       const rect = textarea.getBoundingClientRect();
       
-      // Calculate approximate cursor position (this is a simplified calculation)
+      // Calculate approximate cursor position
       const lineHeight = parseInt(getComputedStyle(textarea).lineHeight) || 20;
-      const charWidth = 8; // Approximate character width
-      
-      // Get text before cursor to calculate position
       const textBeforeCursor = value.substring(0, textarea.selectionStart);
       const lines = textBeforeCursor.split('\n');
       const currentLine = lines.length - 1;
-      const currentLineLength = lines[currentLine]?.length || 0;
       
       setDropdownPosition({
         top: rect.bottom + window.scrollY + 4,
-        left: rect.left + window.scrollX + Math.min(currentLineLength * charWidth, rect.width - 200)
+        left: rect.left + window.scrollX + 10
       });
     }
   }, [mentionState.isActive, value]);
@@ -121,33 +131,15 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
 
   return (
     <div className="relative">
-      {/* Invisible textarea for cursor positioning */}
       <Textarea
         ref={textareaRef}
         value={value}
         onChange={handleInputChange}
         onKeyDown={handleKeyDownInternal}
-        placeholder=""
-        className={`${className} relative z-10 bg-transparent caret-foreground text-transparent selection:bg-primary/20`}
+        placeholder={placeholder}
+        className={className}
         disabled={disabled}
       />
-      
-      {/* Visible overlay with mention highlighting */}
-      <div 
-        className="absolute inset-0 p-3 text-sm whitespace-pre-wrap break-words pointer-events-none z-0 bg-background border border-input rounded-md overflow-hidden"
-        style={{ 
-          fontSize: '14px',
-          fontFamily: 'inherit',
-          lineHeight: '1.4',
-          minHeight: '80px'
-        }}
-      >
-        {value ? (
-          <MentionHighlight content={value} />
-        ) : (
-          <span className="text-muted-foreground">{placeholder}</span>
-        )}
-      </div>
       
       <UserMentionDropdown
         users={mentionState.suggestions}
