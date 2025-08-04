@@ -100,8 +100,10 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
   const handleConversationSelect = (threadId: string) => {
     setSelectedConversation(threadId);
     fetchMessages(threadId);
-    // Mark thread notifications as read when opening
-    markThreadAsRead(threadId);
+    // Delay marking as read so user can see the unread indicator
+    setTimeout(() => {
+      markThreadAsRead(threadId);
+    }, 1000);
   };
 
   const handleCreateProjectConversation = async () => {

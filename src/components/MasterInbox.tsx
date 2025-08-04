@@ -207,7 +207,10 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
                   key={conversation.id}
                   onClick={() => {
                     setSelectedThread(conversation.thread_id);
-                    markThreadAsRead(conversation.thread_id);
+                    // Delay marking as read so user can see the unread indicator
+                    setTimeout(() => {
+                      markThreadAsRead(conversation.thread_id);
+                    }, 1000);
                   }}
                   className={`p-3 rounded-lg cursor-pointer transition-colors ${
                     selectedThread === conversation.thread_id

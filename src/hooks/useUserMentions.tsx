@@ -94,8 +94,8 @@ export const useUserMentions = (workspaceId?: string) => {
     if (mentionMatch) {
       const mentionStart = mentionMatch.index || 0;
       const beforeMention = currentText.substring(0, mentionStart);
-      // Use the user's full name for the mention, with proper spacing
-      const userMention = `@${user.full_name || 'Unknown User'} `;
+      // Store the mention with user ID for backend processing, but display name for users
+      const userMention = `@{userId:${user.id}} `;
       const newText = beforeMention + userMention + afterCursor;
       const newCursorPosition = beforeMention.length + userMention.length;
       

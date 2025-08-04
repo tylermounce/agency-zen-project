@@ -8,31 +8,31 @@ interface MentionExtraction {
 
 export const useMentionUtils = () => {
   const extractMentionsFromContent = useCallback(async (content: string): Promise<MentionExtraction> => {
-    // Extract mentioned display names from content - match full names with spaces
-    const mentionPattern = /@([^@]+?)(?=\s|$|@)/g;
-    const mentions = content.match(mentionPattern);
+    // Extract user IDs from content - match @{userId:actual-uuid} format
+    const mentionPattern = /@\{userId:([^}]+)\}/g;
+    const mentions = [...content.matchAll(mentionPattern)];
     
     if (!mentions || mentions.length === 0) {
       return { mentionedUserIds: [], displayNames: [] };
     }
 
     try {
-      // Get display names by removing @ and trimming
-      const displayNames = mentions.map(mention => mention.substring(1).trim());
+      // Extract user IDs directly from the stored format
+      const mentionedUserIds = mentions.map(match => match[1]);
       
-      // Get user IDs for mentioned users by their full names
+      // Get display names for the user IDs
       const { data: profiles, error } = await supabase
         .from('profiles')
         .select('id, full_name')
-        .in('full_name', displayNames);
+        .in('id', mentionedUserIds);
 
       if (error) {
         console.error('Error fetching mentioned user profiles:', error);
-        return { mentionedUserIds: [], displayNames };
+        return { mentionedUserIds, displayNames: [] };
       }
 
-      // Extract user IDs from matched profiles
-      const mentionedUserIds = (profiles || []).map(profile => profile.id);
+      // Extract display names from matched profiles
+      const displayNames = (profiles || []).map(profile => profile.full_name || 'Unknown User');
       
       return { mentionedUserIds, displayNames };
     } catch (error) {
