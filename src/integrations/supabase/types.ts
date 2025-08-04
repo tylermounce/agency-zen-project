@@ -120,6 +120,7 @@ export type Database = {
           id: string
           is_read: boolean
           message_id: string
+          notification_type: string
           sender_name: string
           thread_id: string
           thread_type: string
@@ -133,6 +134,7 @@ export type Database = {
           id?: string
           is_read?: boolean
           message_id: string
+          notification_type?: string
           sender_name: string
           thread_id: string
           thread_type: string
@@ -146,6 +148,7 @@ export type Database = {
           id?: string
           is_read?: boolean
           message_id?: string
+          notification_type?: string
           sender_name?: string
           thread_id?: string
           thread_type?: string
