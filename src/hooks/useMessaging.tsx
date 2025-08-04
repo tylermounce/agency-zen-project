@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useMentionUtils } from '@/hooks/useMentionUtils';
 
 interface Message {
   id: string;
@@ -9,6 +10,7 @@ interface Message {
   thread_type: string;
   thread_id: string;
   workspace_id: string | null;
+  mentions: string[];
   created_at: string;
 }
 
@@ -25,6 +27,7 @@ interface Conversation {
 
 export const useMessaging = () => {
   const { user } = useAuth();
+  const { extractMentionsFromContent } = useMentionUtils();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<{ [threadId: string]: Message[] }>({});
   const [loading, setLoading] = useState(false);
@@ -76,6 +79,9 @@ export const useMessaging = () => {
     if (!user || !content.trim()) return;
 
     try {
+      // Extract mentioned user IDs from content
+      const { mentionedUserIds } = await extractMentionsFromContent(content.trim());
+
       const { error } = await supabase
         .from('messages')
         .insert({
@@ -83,7 +89,8 @@ export const useMessaging = () => {
           content: content.trim(),
           thread_type: threadType,
           thread_id: threadId,
-          workspace_id: workspaceId || null
+          workspace_id: workspaceId || null,
+          mentions: mentionedUserIds
         });
 
       if (error) throw error;
@@ -97,6 +104,9 @@ export const useMessaging = () => {
       // Refresh messages for this thread and conversations list
       await fetchMessages(threadId);
       await fetchConversations();
+      
+      // Return mentioned user IDs for notification creation
+      return { mentionedUserIds };
     } catch (err) {
       console.error('Error sending message:', err);
       throw err;

@@ -82,6 +82,7 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          mentions: string[] | null
           sender_id: string
           thread_id: string
           thread_type: string
@@ -92,6 +93,7 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          mentions?: string[] | null
           sender_id: string
           thread_id: string
           thread_type: string
@@ -102,6 +104,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          mentions?: string[] | null
           sender_id?: string
           thread_id?: string
           thread_type?: string

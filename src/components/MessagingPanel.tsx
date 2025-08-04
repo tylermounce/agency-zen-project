@@ -73,7 +73,7 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
     if (!conversation) return;
 
     try {
-      await sendMessage(
+      const result = await sendMessage(
         newMessage,
         conversation.thread_type,
         conversation.thread_id,
@@ -81,12 +81,15 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
       );
       
       // Create notifications for mentioned users
-      await createMentionNotifications(
-        newMessage.trim(),
-        conversation.thread_id,
-        conversation.thread_type,
-        conversation.workspace_id || undefined
-      );
+      if (result?.mentionedUserIds) {
+        await createMentionNotifications(
+          result.mentionedUserIds,
+          newMessage.trim(),
+          conversation.thread_id,
+          conversation.thread_type,
+          conversation.workspace_id || undefined
+        );
+      }
       
       setNewMessage('');
     } catch (err) {

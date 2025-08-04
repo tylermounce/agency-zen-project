@@ -67,7 +67,7 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
     if (!conversation) return;
 
     try {
-      await sendMessage(
+      const result = await sendMessage(
         newMessage,
         conversation.thread_type,
         conversation.thread_id,
@@ -75,12 +75,15 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
       );
       
       // Create notifications for mentioned users
-      await createMentionNotifications(
-        newMessage.trim(),
-        conversation.thread_id,
-        conversation.thread_type,
-        conversation.workspace_id || undefined
-      );
+      if (result?.mentionedUserIds) {
+        await createMentionNotifications(
+          result.mentionedUserIds,
+          newMessage.trim(),
+          conversation.thread_id,
+          conversation.thread_type,
+          conversation.workspace_id || undefined
+        );
+      }
       
       setNewMessage('');
     } catch (err) {
@@ -116,7 +119,7 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
       );
 
       if (conversation && newMessageContent.trim()) {
-        await sendMessage(
+        const result = await sendMessage(
           newMessageContent,
           conversation.thread_type,
           conversation.thread_id,
@@ -124,12 +127,15 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
         );
         
         // Create notifications for mentioned users
-        await createMentionNotifications(
-          newMessageContent.trim(),
-          conversation.thread_id,
-          conversation.thread_type,
-          conversation.workspace_id || undefined
-        );
+        if (result?.mentionedUserIds) {
+          await createMentionNotifications(
+            result.mentionedUserIds,
+            newMessageContent.trim(),
+            conversation.thread_id,
+            conversation.thread_type,
+            conversation.workspace_id || undefined
+          );
+        }
       }
 
       // Reset form

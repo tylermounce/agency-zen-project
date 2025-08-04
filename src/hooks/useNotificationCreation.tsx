@@ -6,40 +6,21 @@ export const useNotificationCreation = () => {
   const { user } = useAuth();
 
   const createMentionNotifications = useCallback(async (
+    mentionedUserIds: string[],
     content: string,
     threadId: string,
     threadType: string,
     workspaceId?: string
   ) => {
-    if (!user) return;
-
-    // Extract mentioned usernames from content - match full names with spaces
-    const mentionPattern = /@([^@]+?)(?=\s|$)/g;
-    const mentions = content.match(mentionPattern);
-    
-    if (!mentions || mentions.length === 0) return;
+    if (!user || !mentionedUserIds.length) return;
 
     try {
-      // Get profiles for mentioned users
-      const mentionedNames = mentions.map(mention => mention.substring(1).trim()); // Remove @ symbol and trim
-      
-      const { data: profiles, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .in('full_name', mentionedNames);
-
-      if (profileError) {
-        console.error('Error fetching mentioned user profiles:', profileError);
-        return;
-      }
-
       // Create notifications for mentioned users (including self-mentions)
-      for (const profile of profiles || []) {
-
+      for (const userId of mentionedUserIds) {
         await supabase
           .from('notifications')
           .insert({
-            user_id: profile.id,
+            user_id: userId,
             message_id: crypto.randomUUID(), // Placeholder for now
             content: `${user.email || 'Someone'} mentioned you: ${content.substring(0, 100)}...`,
             sender_name: user.email || 'Unknown',
