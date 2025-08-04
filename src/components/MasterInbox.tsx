@@ -12,7 +12,7 @@ import { MentionHighlight } from '@/components/MentionHighlight';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Search, Inbox, MessageSquare, Hash, User, ArrowLeft, Plus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useNotificationCreation } from '@/hooks/useNotificationCreation';
+
 import { useNotifications } from '@/hooks/useNotifications';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -30,7 +30,7 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
   const { user } = useAuth();
   const { users, loading: usersLoading } = useUsers();
   const { conversations, messages, sendMessage, createConversation, fetchMessages } = useMessaging();
-  const { createMentionNotifications } = useNotificationCreation();
+  
   const { notifications, unreadCount, hasUnreadInThread, markThreadAsRead, getUnreadCountForThread } = useNotifications();
   const { workspaces, projects } = useUnifiedData();
   
@@ -74,16 +74,8 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
         conversation.workspace_id || undefined
       );
       
-      // Create notifications for mentioned users
-      if (result?.mentionedUserIds) {
-        await createMentionNotifications(
-          result.mentionedUserIds,
-          newMessage.trim(),
-          conversation.thread_id,
-          conversation.thread_type,
-          conversation.workspace_id || undefined
-        );
-      }
+      // Note: Notifications are already created in useMessaging.sendMessage
+      // No need to create them again here to avoid duplicates
       
       setNewMessage('');
     } catch (err) {
@@ -126,16 +118,8 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
           conversation.workspace_id || undefined
         );
         
-        // Create notifications for mentioned users
-        if (result?.mentionedUserIds) {
-          await createMentionNotifications(
-            result.mentionedUserIds,
-            newMessageContent.trim(),
-            conversation.thread_id,
-            conversation.thread_type,
-            conversation.workspace_id || undefined
-          );
-        }
+        // Note: Notifications are already created in useMessaging.sendMessage
+        // No need to create them again here to avoid duplicates
       }
 
       // Reset form

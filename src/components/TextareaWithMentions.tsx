@@ -2,6 +2,7 @@ import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { UserMentionDropdown } from '@/components/UserMentionDropdown';
 import { useUserMentions } from '@/hooks/useUserMentions';
+import { supabase } from '@/integrations/supabase/client';
 
 interface TextareaWithMentionsProps {
   value: string;
@@ -24,33 +25,81 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+  const [userDisplayNames, setUserDisplayNames] = useState<{[userId: string]: string}>({});
+  const [displayValue, setDisplayValue] = useState(value);
   const { mentionState, handleTextChange, handleUserSelect, closeMentions } = useUserMentions(workspaceId);
 
   // Convert stored format to display format for showing in textarea
-  const getDisplayValue = useCallback((text: string) => {
-    // Replace @{userId:uuid} with @DisplayName for display purposes
-    return text.replace(/@\{userId:([^}]+)\}/g, (match, userId) => {
-      // In a real implementation, you'd want to cache user display names
-      // For now, we'll show a placeholder that gets replaced by MentionHighlight
-      return match; // Keep the original format for now
-    });
-  }, []);
+  const getDisplayValue = useCallback(async (text: string) => {
+    let displayText = text;
+    const mentionPattern = /@\{userId:([^}]+)\}/g;
+    const matches = [...text.matchAll(mentionPattern)];
 
-  // Convert display format back to storage format
-  const getStorageValue = useCallback((text: string) => {
-    // This should already be in the correct format from handleUserSelect
-    return text;
-  }, []);
+    for (const match of matches) {
+      const userId = match[1];
+      let displayName = userDisplayNames[userId];
+
+      if (!displayName) {
+        try {
+          // Fetch display name if not cached
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', userId)
+            .single();
+
+          displayName = profile?.full_name || 'Unknown User';
+          setUserDisplayNames(prev => ({ ...prev, [userId]: displayName }));
+        } catch (error) {
+          console.error('Error fetching user display name:', error);
+          displayName = 'Unknown User';
+        }
+      }
+
+      displayText = displayText.replace(match[0], `@${displayName}`);
+    }
+
+    return displayText;
+  }, [userDisplayNames]);
+
+  // Convert display format back to storage format when editing existing mentions
+  const convertDisplayToStorage = useCallback((text: string) => {
+    let storageText = text;
+
+    // Convert @DisplayName back to @{userId:uuid} format for any edited mentions
+    Object.entries(userDisplayNames).forEach(([userId, displayName]) => {
+      const displayMention = `@${displayName}`;
+      const storageMention = `@{userId:${userId}}`;
+      storageText = storageText.replace(new RegExp(`@${displayName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'g'), storageMention);
+    });
+
+    return storageText;
+  }, [userDisplayNames]);
+
+  // Effect to update display value when the stored value changes
+  useEffect(() => {
+    const updateDisplayValue = async () => {
+      const newDisplayValue = await getDisplayValue(value);
+      setDisplayValue(newDisplayValue);
+    };
+
+    updateDisplayValue();
+  }, [value, getDisplayValue]);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newValue = e.target.value;
+    const newDisplayValue = e.target.value;
     const cursorPosition = e.target.selectionStart;
     
-    console.log('📝 TextareaWithMentions input change:', { newValue, cursorPosition });
+    console.log('📝 TextareaWithMentions input change:', { newDisplayValue, cursorPosition });
     
-    onChange(newValue);
-    handleTextChange(newValue, cursorPosition);
-  }, [onChange, handleTextChange]);
+    // Update display value immediately for responsive UI
+    setDisplayValue(newDisplayValue);
+    
+    // Convert display format to storage format before saving
+    const storageValue = convertDisplayToStorage(newDisplayValue);
+    onChange(storageValue);
+    handleTextChange(newDisplayValue, cursorPosition); // Use display value for mention detection
+  }, [onChange, handleTextChange, convertDisplayToStorage]);
 
   const handleKeyDownInternal = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (mentionState.isActive) {
@@ -69,8 +118,15 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
       if (e.key === 'Enter' && mentionState.suggestions.length > 0) {
         e.preventDefault();
         const firstSuggestion = mentionState.suggestions[0];
-        const result = handleUserSelect(firstSuggestion, value, textareaRef.current?.selectionStart || 0);
-        onChange(result.text);
+        const result = handleUserSelect(firstSuggestion, displayValue, textareaRef.current?.selectionStart || 0);
+        
+        // Update display names cache
+        setUserDisplayNames(prev => ({ ...prev, [firstSuggestion.id]: firstSuggestion.full_name || 'Unknown User' }));
+        
+        // Update both display and storage values
+        const newDisplayValue = result.text.replace(`@{userId:${firstSuggestion.id}}`, `@${firstSuggestion.full_name || 'Unknown User'}`);
+        setDisplayValue(newDisplayValue);
+        onChange(result.text); // Store the storage format
         
         // Set cursor position after state update
         setTimeout(() => {
@@ -88,13 +144,19 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
   }, [mentionState, closeMentions, handleUserSelect, value, onChange, onKeyDown]);
 
   const handleUserSelectFromDropdown = useCallback((user: any) => {
-    console.log('🎯 User selected from dropdown:', { user, currentValue: value, currentCursor: textareaRef.current?.selectionStart });
+    console.log('🎯 User selected from dropdown:', { user, currentDisplayValue: displayValue, currentCursor: textareaRef.current?.selectionStart });
     
-    const result = handleUserSelect(user, value, textareaRef.current?.selectionStart || 0);
+    const result = handleUserSelect(user, displayValue, textareaRef.current?.selectionStart || 0);
     
     console.log('🎯 User select result:', result);
     
-    onChange(result.text);
+    // Update display names cache
+    setUserDisplayNames(prev => ({ ...prev, [user.id]: user.full_name || 'Unknown User' }));
+    
+    // Update both display and storage values
+    const newDisplayValue = result.text.replace(`@{userId:${user.id}}`, `@${user.full_name || 'Unknown User'}`);
+    setDisplayValue(newDisplayValue);
+    onChange(result.text); // Store the storage format
     
     // Set cursor position and focus after state update
     setTimeout(() => {
@@ -103,7 +165,7 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
         textareaRef.current.focus();
       }
     }, 0);
-  }, [handleUserSelect, value, onChange]);
+  }, [handleUserSelect, displayValue, onChange]);
 
   // Update dropdown position when mention state changes
   useEffect(() => {
@@ -113,7 +175,7 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
       
       // Calculate approximate cursor position
       const lineHeight = parseInt(getComputedStyle(textarea).lineHeight) || 20;
-      const textBeforeCursor = value.substring(0, textarea.selectionStart);
+      const textBeforeCursor = displayValue.substring(0, textarea.selectionStart);
       const lines = textBeforeCursor.split('\n');
       const currentLine = lines.length - 1;
       
@@ -122,7 +184,7 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
         left: rect.left + window.scrollX + 10
       });
     }
-  }, [mentionState.isActive, value]);
+  }, [mentionState.isActive, displayValue]);
 
   // Close mentions when clicking outside
   useEffect(() => {
@@ -140,7 +202,7 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
     <div className="relative">
       <Textarea
         ref={textareaRef}
-        value={value}
+        value={displayValue}
         onChange={handleInputChange}
         onKeyDown={handleKeyDownInternal}
         placeholder={placeholder}

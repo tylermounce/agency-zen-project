@@ -16,7 +16,7 @@ import { MentionHighlight } from '@/components/MentionHighlight';
 import { useMessaging } from '@/hooks/useMessaging';
 import { useUsers } from '@/hooks/useUsers';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNotificationCreation } from '@/hooks/useNotificationCreation';
+
 import { useNotifications } from '@/hooks/useNotifications';
 import { useUnifiedData } from '@/hooks/useUnifiedData';
 
@@ -29,7 +29,7 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
   const { user } = useAuth();
   const { users } = useUsers();
   const { conversations, messages, sendMessage, createConversation, fetchMessages, getProjectThreadId } = useMessaging();
-  const { createMentionNotifications } = useNotificationCreation();
+  
   const { hasUnreadInThread, markThreadAsRead, getUnreadCountForThread } = useNotifications();
   const { getWorkspace, mapWorkspaceIdToName, getWorkspaceProjects } = useUnifiedData();
   const [selectedConversation, setSelectedConversation] = useState('');
@@ -80,16 +80,8 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
         conversation.workspace_id || undefined
       );
       
-      // Create notifications for mentioned users
-      if (result?.mentionedUserIds) {
-        await createMentionNotifications(
-          result.mentionedUserIds,
-          newMessage.trim(),
-          conversation.thread_id,
-          conversation.thread_type,
-          conversation.workspace_id || undefined
-        );
-      }
+      // Note: Notifications are already created in useMessaging.sendMessage
+      // No need to create them again here to avoid duplicates
       
       setNewMessage('');
     } catch (err) {
