@@ -13,18 +13,21 @@ interface UserMentionDropdownProps {
   isVisible: boolean;
   onUserSelect: (user: User) => void;
   position: { top: number; left: number };
+  containerRef?: React.RefObject<HTMLDivElement>;
 }
 
 export const UserMentionDropdown: React.FC<UserMentionDropdownProps> = ({
   users,
   isVisible,
   onUserSelect,
-  position
+  position,
+  containerRef
 }) => {
   if (!isVisible || users.length === 0) return null;
 
   return (
     <div
+      ref={containerRef}
       className="fixed z-50 bg-background border border-border rounded-lg shadow-lg max-w-xs w-64"
       style={{
         top: position.top,

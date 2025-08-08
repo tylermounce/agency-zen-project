@@ -24,6 +24,7 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
   disabled
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const [userDisplayNames, setUserDisplayNames] = useState<{[userId: string]: string}>({});
   const [displayValue, setDisplayValue] = useState(value);
@@ -189,7 +190,11 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
   // Close mentions when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (mentionState.isActive && textareaRef.current && !textareaRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const clickedOutsideTextarea = textareaRef.current && !textareaRef.current.contains(target);
+      const clickedOutsideDropdown = dropdownRef.current && !dropdownRef.current.contains(target);
+
+      if (mentionState.isActive && clickedOutsideTextarea && clickedOutsideDropdown) {
         closeMentions();
       }
     };
@@ -215,6 +220,7 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
         isVisible={mentionState.isActive}
         onUserSelect={handleUserSelectFromDropdown}
         position={dropdownPosition}
+        containerRef={dropdownRef}
       />
     </div>
   );
