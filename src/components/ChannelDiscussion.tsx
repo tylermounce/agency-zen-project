@@ -36,7 +36,7 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
   const { user } = useAuth();
   const { sendMessage } = useMessaging();
   const [newPost, setNewPost] = useState('');
-  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyTargetId, setReplyTargetId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -130,7 +130,7 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
     // For now, just log - reply functionality can be enhanced later
     if (replyText.trim()) {
       setReplyText('');
-      setReplyingTo(null);
+      setReplyTargetId(null);
     }
   };
 
@@ -325,7 +325,7 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setReplyingTo(replyingTo === message.id ? null : message.id)}
+                        onClick={() => setReplyTargetId(replyTargetId === message.id ? null : message.id)}
                         className="text-gray-500 hover:text-gray-700"
                       >
                         <Reply className="w-4 h-4 mr-1" />
@@ -335,7 +335,7 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
                   </div>
 
                   {/* Reply Input */}
-                  {replyingTo === message.id && (
+                  {replyTargetId === message.id && (
                     <div className="ml-13 space-y-3">
                       <div className="flex space-x-3">
                         <Avatar className="w-8 h-8">
@@ -353,7 +353,7 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
                             <Button size="sm" onClick={() => handleReply(message.id)} disabled={!replyText.trim()}>
                               Reply
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => setReplyingTo(null)}>
+                            <Button size="sm" variant="ghost" onClick={() => setReplyTargetId(null)}>
                               Cancel
                             </Button>
                           </div>
