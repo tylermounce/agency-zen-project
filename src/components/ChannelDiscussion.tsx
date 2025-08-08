@@ -11,6 +11,8 @@ import { TextareaWithMentions } from '@/components/TextareaWithMentions';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { MentionHighlight } from '@/components/MentionHighlight';
+import { useMessaging } from '@/hooks/useMessaging';
 
 interface ChannelDiscussionProps {
   workspaceId: string;
@@ -32,6 +34,7 @@ interface Profile {
 
 export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
   const { user } = useAuth();
+  const { sendMessage } = useMessaging();
   const [newPost, setNewPost] = useState('');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
@@ -108,18 +111,13 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
           });
       }
 
-      // Insert the message
-      const { error } = await supabase
-        .from('messages')
-        .insert({
-          content: newPost,
-          sender_id: user.id,
-          thread_id: threadId,
-          thread_type: 'channel',
-          workspace_id: workspaceId
-        });
-
-      if (error) throw error;
+      // Insert the message using messaging hook to handle mentions & notifications
+      await sendMessage(
+        newPost,
+        'channel',
+        threadId,
+        workspaceId
+      );
 
       setNewPost('');
       fetchMessages(); // Refresh messages
@@ -322,7 +320,7 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
                           </div>
                         </div>
                       ) : (
-                        <p className="text-gray-900">{message.content}</p>
+                        <MentionHighlight content={message.content} className="text-gray-900" />
                       )}
                       <Button
                         variant="ghost"
