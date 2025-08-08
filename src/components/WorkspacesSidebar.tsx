@@ -33,6 +33,15 @@ export function WorkspacesSidebar({
   const { isMobile, setOpenMobile, state } = useSidebar();
   const isCollapsed = state === "collapsed";
 
+  // Helper: supports Tailwind bg-* classes or custom hex/RGB/HSL codes from settings
+  const dotProps = (color: string) => {
+    const isTw = typeof color === "string" && color.trim().startsWith("bg-");
+    return {
+      className: `inline-block size-3.5 rounded-full ${isTw ? color : ""}`,
+      style: isTw ? undefined : { backgroundColor: color },
+    };
+  };
+
   const handleSelect = (id: string) => {
     onWorkspaceChange(id);
     if (isMobile) setOpenMobile(false);
@@ -59,10 +68,7 @@ export function WorkspacesSidebar({
                         <>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span
-                                className={`inline-block size-3.5 rounded-full ${w.color}`}
-                                aria-label={w.name}
-                              />
+                              <span {...dotProps(w.color)} aria-label={w.name} />
                             </TooltipTrigger>
                             <TooltipContent side="right">
                               <div className="flex items-center gap-2">
@@ -74,7 +80,7 @@ export function WorkspacesSidebar({
                         </>
                       ) : (
                         <>
-                          <span className={`inline-block size-3.5 rounded-full ${w.color}`} />
+                          <span {...dotProps(w.color)} />
                           <span className="truncate">{w.name}</span>
                         </>
                       )}
