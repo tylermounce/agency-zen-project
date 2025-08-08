@@ -7,7 +7,7 @@ interface MentionHighlightProps {
 }
 
 export const MentionHighlight: React.FC<MentionHighlightProps> = ({ content, className = '' }) => {
-  const [processedContent, setProcessedContent] = useState(content);
+  const [parts, setParts] = useState<React.ReactNode[]>([content]);
 
   useEffect(() => {
     const processMentions = async () => {
@@ -21,7 +21,7 @@ export const MentionHighlight: React.FC<MentionHighlightProps> = ({ content, cla
       
       if (mentions.length === 0) {
         console.log('🎨 No mentions to process, using original content');
-        setProcessedContent(content);
+        setParts([content]);
         return;
       }
 
@@ -37,49 +37,50 @@ export const MentionHighlight: React.FC<MentionHighlightProps> = ({ content, cla
 
         console.log('🎨 Profile lookup result:', profiles);
 
-        let result = content;
+        // Build parts array interleaving plain text and mention chips using original indices
+        let lastIndex = 0;
+        const newParts: React.ReactNode[] = [];
         
-        // Replace each mention with the actual display name
         mentions.forEach(match => {
+          const matchIndex = match.index ?? 0;
+          if (matchIndex > lastIndex) {
+            newParts.push(content.slice(lastIndex, matchIndex));
+          }
           const userId = match[1];
           const profile = profiles?.find(p => p.id === userId);
           const displayName = profile?.full_name || 'Unknown User';
           
-          console.log(`🎨 Replacing ${match[0]} with @${displayName}`);
+          console.log(`🎨 Rendering mention chip for ${match[0]} as @${displayName}`);
           
-          result = result.replace(match[0], `@${displayName}`);
+          newParts.push(
+            <span
+              key={`mention-${matchIndex}-${userId}`}
+              className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 px-1 py-0.5 rounded font-medium"
+            >
+              @{displayName}
+            </span>
+          );
+          lastIndex = matchIndex + match[0].length;
         });
-
-        console.log('🎨 Final processed content:', result);
-        setProcessedContent(result);
+        
+        if (lastIndex < content.length) {
+          newParts.push(content.slice(lastIndex));
+        }
+        
+        console.log('🎨 Final processed parts:', newParts);
+        setParts(newParts);
       } catch (error) {
         console.error('Error processing mentions:', error);
-        setProcessedContent(content);
+        setParts([content]);
       }
     };
 
     processMentions();
   }, [content]);
 
-  // Split the processed content by mentions to highlight them
-  const parts = processedContent.split(/(@[^@\s]+(?:\s+[^@\s]+)*)/g);
-
   return (
     <span className={className}>
-      {parts.map((part, index) => {
-        // Check if this part is a mention
-        if (part.startsWith('@') && part.length > 1 && !part.includes('{')) {
-          return (
-            <span
-              key={index}
-              className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 px-1 py-0.5 rounded font-medium"
-            >
-              {part}
-            </span>
-          );
-        }
-        return part;
-      })}
+      {parts}
     </span>
   );
 };
