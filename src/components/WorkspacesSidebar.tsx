@@ -1,4 +1,3 @@
-import { useMemo, useState } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -6,9 +5,7 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
-  SidebarInput,
   SidebarMenu,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
@@ -33,15 +30,8 @@ export function WorkspacesSidebar({
   selectedWorkspace,
   onWorkspaceChange,
 }: WorkspacesSidebarProps) {
-  const [query, setQuery] = useState("");
   const { isMobile, setOpenMobile, state } = useSidebar();
   const isCollapsed = state === "collapsed";
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return workspaces;
-    return workspaces.filter((w) => w.name.toLowerCase().includes(q));
-  }, [query, workspaces]);
 
   const handleSelect = (id: string) => {
     onWorkspaceChange(id);
@@ -52,11 +42,6 @@ export function WorkspacesSidebar({
     <Sidebar className="bg-sidebar text-sidebar-foreground" collapsible="icon">
       <SidebarHeader>
         <SidebarGroupLabel>Workspaces</SidebarGroupLabel>
-        <SidebarInput
-          placeholder="Search workspaces"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
       </SidebarHeader>
 
       <SidebarContent>
@@ -64,7 +49,7 @@ export function WorkspacesSidebar({
           <SidebarGroupContent>
             <TooltipProvider delayDuration={300}>
               <SidebarMenu>
-                {filtered.map((w) => (
+                {workspaces.map((w) => (
                   <SidebarMenuItem key={w.id}>
                     <SidebarMenuButton
                       isActive={selectedWorkspace === w.id}
@@ -89,12 +74,8 @@ export function WorkspacesSidebar({
                         </>
                       ) : (
                         <>
-                          {/* Color dot */}
-                          <span className={`inline-block size-2 rounded-full ${w.color}`} />
+                          <span className={`inline-block size-3.5 rounded-full ${w.color}`} />
                           <span className="truncate">{w.name}</span>
-                          <SidebarMenuBadge className="bg-muted text-muted-foreground">
-                            {w.tasks}
-                          </SidebarMenuBadge>
                         </>
                       )}
                     </SidebarMenuButton>
