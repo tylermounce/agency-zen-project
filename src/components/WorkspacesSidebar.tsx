@@ -13,6 +13,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export interface WorkspaceItem {
   id: string;
@@ -33,7 +34,8 @@ export function WorkspacesSidebar({
   onWorkspaceChange,
 }: WorkspacesSidebarProps) {
   const [query, setQuery] = useState("");
-  const { isMobile, setOpenMobile } = useSidebar();
+  const { isMobile, setOpenMobile, state } = useSidebar();
+  const isCollapsed = state === "collapsed";
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -60,23 +62,46 @@ export function WorkspacesSidebar({
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {filtered.map((w) => (
-                <SidebarMenuItem key={w.id}>
-                  <SidebarMenuButton
-                    isActive={selectedWorkspace === w.id}
-                    onClick={() => handleSelect(w.id)}
-                  >
-                    {/* Color dot */}
-                    <span className={`inline-block size-2 rounded-full ${w.color}`} />
-                    <span className="truncate">{w.name}</span>
-                    <SidebarMenuBadge className="bg-muted text-muted-foreground">
-                      {w.tasks}
-                    </SidebarMenuBadge>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+            <TooltipProvider delayDuration={300}>
+              <SidebarMenu>
+                {filtered.map((w) => (
+                  <SidebarMenuItem key={w.id}>
+                    <SidebarMenuButton
+                      isActive={selectedWorkspace === w.id}
+                      onClick={() => handleSelect(w.id)}
+                    >
+                      {isCollapsed ? (
+                        <>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span
+                                className={`inline-block size-3.5 rounded-full ${w.color}`}
+                                aria-label={w.name}
+                              />
+                            </TooltipTrigger>
+                            <TooltipContent side="right">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{w.name}</span>
+                                <span className="text-muted-foreground">{w.tasks} tasks</span>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </>
+                      ) : (
+                        <>
+                          {/* Color dot */}
+                          <span className={`inline-block size-2 rounded-full ${w.color}`} />
+                          <span className="truncate">{w.name}</span>
+                          <SidebarMenuBadge className="bg-muted text-muted-foreground">
+                            {w.tasks}
+                          </SidebarMenuBadge>
+                        </>
+                      )}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </TooltipProvider>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
