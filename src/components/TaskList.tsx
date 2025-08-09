@@ -311,12 +311,12 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
                     />
                   </div>
                   <div>
-                    <Label htmlFor="task-description">Description</Label>
+                    <Label htmlFor="task-description">Notes</Label>
                     <Textarea
                       id="task-description"
                       value={newTaskDescription}
                       onChange={(e) => setNewTaskDescription(e.target.value)}
-                      placeholder="Enter task description..."
+                      placeholder="Add optional notes..."
                       className="min-h-[80px]"
                     />
                   </div>
