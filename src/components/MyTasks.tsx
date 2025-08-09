@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -15,14 +16,15 @@ import { useUnifiedData } from '@/hooks/useUnifiedData';
 
 export const MyTasks = () => {
   const { user } = useAuth();
-  const { 
-    users, 
-    getUserTasks, 
-    workspaces, 
-    projects, 
-    updateTask, 
+  const {
+    users,
+    getUserTasks,
+    workspaces,
+    projects,
+    updateTask,
     createTask,
-    loading 
+    createWorkspace,
+    loading
   } = useUnifiedData();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -36,6 +38,7 @@ export const MyTasks = () => {
   const [newTaskPriority, setNewTaskPriority] = useState('medium');
   const [newTaskAssignee, setNewTaskAssignee] = useState('');
   const [newTaskDueDate, setNewTaskDueDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newTaskNotes, setNewTaskNotes] = useState('');
   const [isPersonalTask, setIsPersonalTask] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
@@ -124,30 +127,52 @@ export const MyTasks = () => {
 
   const handleCreateTask = async () => {
     if (!newTaskTitle.trim()) return;
-    
-    if (!isPersonalTask && (!newTaskWorkspace || !newTaskProject)) {
-      console.error('Workspace and project are required for non-personal tasks');
-      return;
-    }
-    
+
     try {
-      const selectedWorkspace = workspaces.find(w => w.name === newTaskWorkspace);
-      const selectedProject = projects.find(p => p.title === newTaskProject && p.workspace_id === selectedWorkspace?.id);
-      
+      // Resolve workspace and project
+      let workspaceId: string | null = null;
+      let projectId: string | null = null;
+
+      if (isPersonalTask) {
+        // Ensure a "Personal" workspace exists to hold personal tasks
+        let personalWs = workspaces.find(w => w.name === 'Personal');
+        if (!personalWs) {
+          console.log('Creating Personal workspace for personal tasks');
+          personalWs = await createWorkspace({
+            name: 'Personal',
+            color: '#64748b',
+            description: 'Personal tasks'
+          } as any);
+        }
+        workspaceId = personalWs?.id || null;
+      } else {
+        if (!newTaskWorkspace || !newTaskProject) {
+          console.error('Workspace and project are required for non-personal tasks');
+          return;
+        }
+        const selectedWorkspace = workspaces.find(w => w.name === newTaskWorkspace);
+        const selectedProject = projects.find(
+          (p) => p.title === newTaskProject && p.workspace_id === selectedWorkspace?.id
+        );
+        workspaceId = selectedWorkspace?.id || null;
+        projectId = selectedProject?.id || null;
+      }
+
       const taskData = {
         title: newTaskTitle,
-        description: '',
-        project_id: isPersonalTask ? null : selectedProject?.id,
-        workspace_id: isPersonalTask ? null : selectedWorkspace?.id,
+        description: newTaskNotes || '',
+        project_id: projectId,
+        workspace_id: workspaceId,
         assignee_id: newTaskAssignee,
         due_date: newTaskDueDate,
         status: 'todo' as const,
         priority: newTaskPriority as 'low' | 'medium' | 'high',
-        completed: false
+        completed: false,
       };
-      
-      await createTask(taskData);
-      
+
+      console.log('Creating task with data:', taskData);
+      await createTask(taskData as any);
+
       // Reset form
       setNewTaskTitle('');
       setNewTaskWorkspace('');
@@ -155,6 +180,7 @@ export const MyTasks = () => {
       setNewTaskPriority('medium');
       setNewTaskAssignee(user?.id || '');
       setNewTaskDueDate(new Date().toISOString().split('T')[0]);
+      setNewTaskNotes('');
       setIsPersonalTask(false);
       setIsNewTaskOpen(false);
     } catch (error) {
@@ -354,6 +380,16 @@ export const MyTasks = () => {
                         type="date"
                         value={newTaskDueDate}
                         onChange={(e) => setNewTaskDueDate(e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium">Notes</label>
+                      <Textarea
+                        placeholder="Add optional notes..."
+                        value={newTaskNotes}
+                        onChange={(e) => setNewTaskNotes(e.target.value)}
+                        rows={4}
                       />
                     </div>
 
