@@ -14,7 +14,7 @@ interface TaskDetailProps {
   task: Task | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (updatedTask: Task) => void;
+  onSave: (updatedTask: Partial<Task>) => void;
 }
 
 export const TaskDetail = ({ task, open, onOpenChange, onSave }: TaskDetailProps) => {
@@ -47,9 +47,9 @@ export const TaskDetail = ({ task, open, onOpenChange, onSave }: TaskDetailProps
     
     console.log('Updates to be sent:', updates);
     
-    // Don't include project_id in updates to avoid UUID issues
-    onSave(updates as Task);
-    onOpenChange(false);
+// Don't include project_id in updates to avoid UUID issues
+onSave(updates);
+onOpenChange(false);
   };
 
   // Get project and workspace info for display

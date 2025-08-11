@@ -91,15 +91,23 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
     if (!newPost.trim() || !user) return;
 
     try {
+      // Load workspace members to ensure everyone in the workspace can see the channel
+      const { data: members, error: membersError } = await supabase
+        .from('workspace_members')
+        .select('user_id')
+        .eq('workspace_id', workspaceId);
+      if (membersError) throw membersError;
+      const memberIds = Array.from(new Set((members || []).map((m: any) => m.user_id)));
+
       // Check if conversation exists for this thread
       const { data: existingConv } = await supabase
         .from('conversations')
-        .select('id')
+        .select('id, participants')
         .eq('thread_id', threadId)
-        .single();
+        .maybeSingle();
 
       if (!existingConv) {
-        // Create conversation if it doesn't exist
+        // Create conversation with ALL workspace members as participants
         await supabase
           .from('conversations')
           .insert({
@@ -107,8 +115,18 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
             thread_type: 'channel',
             title: 'General Discussion',
             workspace_id: workspaceId,
-            participants: [user.id]
+            participants: memberIds,
           });
+      } else {
+        // Ensure conversation participants include all current workspace members
+        const current = Array.isArray(existingConv.participants) ? existingConv.participants : [];
+        const union = Array.from(new Set([...(current as string[]), ...memberIds]));
+        if (union.length !== current.length) {
+          await supabase
+            .from('conversations')
+            .update({ participants: union })
+            .eq('id', existingConv.id);
+        }
       }
 
       // Insert the message using messaging hook to handle mentions & notifications

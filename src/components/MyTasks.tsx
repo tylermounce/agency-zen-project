@@ -193,16 +193,19 @@ export const MyTasks = () => {
     setIsTaskDetailOpen(true);
   };
 
-  const handleTaskSave = async (updatedTask) => {
+  const handleTaskSave = async (updates: Partial<any>) => {
     try {
-      await updateTask(updatedTask.id, {
-        title: updatedTask.title,
-        description: updatedTask.notes,
-        status: updatedTask.status,
-        priority: updatedTask.priority,
-        due_date: updatedTask.dueDate,
-        completed: updatedTask.completed
-      });
+      if (!selectedTask) return;
+      const payload: any = {};
+      if (updates.title !== undefined) payload.title = updates.title;
+      if (updates.description !== undefined) payload.description = updates.description;
+      if (updates.status !== undefined) payload.status = updates.status;
+      if (updates.priority !== undefined) payload.priority = updates.priority;
+      if ((updates as any).due_date !== undefined) payload.due_date = (updates as any).due_date;
+      if (updates.completed !== undefined) payload.completed = updates.completed;
+      if ((updates as any).assignee_id !== undefined) payload.assignee_id = (updates as any).assignee_id;
+
+      await updateTask((selectedTask as any).id, payload);
     } catch (error) {
       console.error('Error updating task:', error);
     }
