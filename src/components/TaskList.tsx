@@ -27,11 +27,10 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
   const { getWorkspaceTasks, getWorkspaceProjects, getUser, getProject, updateTask, createTask } = useUnifiedData();
   const { users } = useUsers();
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string[]>(['all']);
+  const [filterStatus, setFilterStatus] = useState<string[]>(['todo', 'in-progress', 'review', 'done']);
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterProject, setFilterProject] = useState('all');
   const [filterAssignee, setFilterAssignee] = useState('all');
-  const [showCompleted, setShowCompleted] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
   
@@ -124,14 +123,12 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
 
   // Filter tasks
   const filteredTasks = workspaceTasks.filter(task => {
-    if (!showCompleted && task.completed) return false;
-    
     const project = task.project_id ? getProject(task.project_id) : null;
     const projectTitle = project?.title || 'General Tasks';
     
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          projectTitle.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus.includes('all') || filterStatus.includes(task.status);
+    const matchesStatus = filterStatus.length === 0 || filterStatus.includes(task.status);
     const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
     const matchesProject = (filterProject === 'all' || projectTitle === filterProject) && 
                           (!projectFilter || projectTitle === projectFilter);
@@ -206,14 +203,6 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
               Filters & Search
             </div>
             <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowCompleted(!showCompleted)}
-              >
-                {showCompleted ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
-                {showCompleted ? 'Hide Completed' : 'Show Completed'}
-              </Button>
               {projectFilter && (
                 <Badge variant="secondary" className="flex items-center space-x-1">
                   <span>Project: {projectFilter}</span>
@@ -241,38 +230,46 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
                 className="pl-10"
               />
             </div>
-            <div className="space-y-2">
+            <div>
               <label className="text-sm font-medium">Status</label>
-              <div className="space-y-1">
-                {[
-                  { value: 'all', label: 'All Status' },
-                  { value: 'todo', label: 'To Do' },
-                  { value: 'in-progress', label: 'In Progress' },
-                  { value: 'review', label: 'Review' },
-                  { value: 'done', label: 'Done' }
-                ].map((status) => (
-                  <div key={status.value} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`status-${status.value}`}
-                      checked={filterStatus.includes(status.value)}
-                      onCheckedChange={(checked) => {
-                        if (status.value === 'all') {
-                          setFilterStatus(checked ? ['all'] : []);
-                        } else {
+              <Select 
+                value={filterStatus.length === 4 ? "all" : filterStatus.join(",")} 
+                onValueChange={() => {}}
+              >
+                <SelectTrigger>
+                  <SelectValue>
+                    {filterStatus.length === 4 ? "All Status" : 
+                     filterStatus.length === 0 ? "No Status Selected" :
+                     filterStatus.length === 1 ? filterStatus[0].replace('-', ' ') :
+                     `${filterStatus.length} Selected`}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {[
+                    { value: 'todo', label: 'To Do' },
+                    { value: 'in-progress', label: 'In Progress' },
+                    { value: 'review', label: 'Review' },
+                    { value: 'done', label: 'Done' }
+                  ].map((status) => (
+                    <div key={status.value} className="flex items-center space-x-2 px-2 py-1.5 hover:bg-gray-100 cursor-pointer">
+                      <Checkbox
+                        id={`status-${status.value}`}
+                        checked={filterStatus.includes(status.value)}
+                        onCheckedChange={(checked) => {
                           if (checked) {
-                            setFilterStatus(prev => prev.filter(s => s !== 'all').concat(status.value));
+                            setFilterStatus(prev => [...prev, status.value]);
                           } else {
                             setFilterStatus(prev => prev.filter(s => s !== status.value));
                           }
-                        }
-                      }}
-                    />
-                    <label htmlFor={`status-${status.value}`} className="text-sm">
-                      {status.label}
-                    </label>
-                  </div>
-                ))}
-              </div>
+                        }}
+                      />
+                      <label htmlFor={`status-${status.value}`} className="text-sm cursor-pointer">
+                        {status.label}
+                      </label>
+                    </div>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <Select value={filterProject} onValueChange={setFilterProject}>
               <SelectTrigger>
@@ -486,8 +483,8 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
             </Collapsible>
           )}
 
-          {/* Completed Tasks (only show if toggle is on) */}
-          {showCompleted && completedTasks.length > 0 && (
+          {/* Completed Tasks */}
+          {completedTasks.length > 0 && (
             <Collapsible open={completedOpen} onOpenChange={setCompletedOpen}>
               <CollapsibleTrigger className="flex items-center space-x-2 w-full p-2 rounded-lg hover:bg-gray-50 text-left">
                 {completedOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
