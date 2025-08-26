@@ -28,7 +28,7 @@ export const MyTasks = () => {
     loading
   } = useUnifiedData();
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterStatus, setFilterStatus] = useState<string[]>(['all']);
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterWorkspace, setFilterWorkspace] = useState('all');
   const [showCompleted, setShowCompleted] = useState(false);
@@ -92,7 +92,7 @@ export const MyTasks = () => {
       const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            task.project.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            task.workspace.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
+      const matchesStatus = filterStatus.includes('all') || filterStatus.includes(task.status);
       const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
       const matchesWorkspace = filterWorkspace === 'all' || task.workspace === filterWorkspace;
       
@@ -228,6 +228,11 @@ export const MyTasks = () => {
       <Checkbox 
         checked={task.completed} 
         className="mt-1"
+        onCheckedChange={(checked) => {
+          const isCompleted = checked === true;
+          const newStatus = isCompleted ? 'done' : 'todo';
+          updateTask(task.id, { completed: isCompleted, status: newStatus });
+        }}
         onClick={(e) => e.stopPropagation()}
       />
       <div className="flex-1 min-w-0">
@@ -430,18 +435,39 @@ export const MyTasks = () => {
                 className="pl-10"
               />
             </div>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="todo">To Do</SelectItem>
-                <SelectItem value="in-progress">In Progress</SelectItem>
-                <SelectItem value="review">Review</SelectItem>
-                <SelectItem value="done">Done</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Status</label>
+              <div className="space-y-1">
+                {[
+                  { value: 'all', label: 'All Status' },
+                  { value: 'todo', label: 'To Do' },
+                  { value: 'in-progress', label: 'In Progress' },
+                  { value: 'review', label: 'Review' },
+                  { value: 'done', label: 'Done' }
+                ].map((status) => (
+                  <div key={status.value} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`status-${status.value}`}
+                      checked={filterStatus.includes(status.value)}
+                      onCheckedChange={(checked) => {
+                        if (status.value === 'all') {
+                          setFilterStatus(checked ? ['all'] : []);
+                        } else {
+                          if (checked) {
+                            setFilterStatus(prev => prev.filter(s => s !== 'all').concat(status.value));
+                          } else {
+                            setFilterStatus(prev => prev.filter(s => s !== status.value));
+                          }
+                        }
+                      }}
+                    />
+                    <label htmlFor={`status-${status.value}`} className="text-sm">
+                      {status.label}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
             <Select value={filterPriority} onValueChange={setFilterPriority}>
               <SelectTrigger>
                 <SelectValue placeholder="Priority" />
