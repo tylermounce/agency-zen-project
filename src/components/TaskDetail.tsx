@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Calendar, User, Flag, CheckSquare, FileText, Save, X } from 'lucide-react';
+import { Calendar, User, Flag, CheckSquare, FileText, Save, X, Trash2 } from 'lucide-react';
 import { Task } from '@/types';
 import { useUnifiedData } from '@/hooks/useUnifiedData';
 
@@ -15,9 +15,10 @@ interface TaskDetailProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (updatedTask: Partial<Task>) => void;
+  onDelete?: (taskId: string) => void;
 }
 
-export const TaskDetail = ({ task, open, onOpenChange, onSave }: TaskDetailProps) => {
+export const TaskDetail = ({ task, open, onOpenChange, onSave, onDelete }: TaskDetailProps) => {
   const { getProject, getWorkspace, users } = useUnifiedData();
   const [editedTask, setEditedTask] = useState<Task | null>(null);
 
@@ -50,6 +51,13 @@ export const TaskDetail = ({ task, open, onOpenChange, onSave }: TaskDetailProps
 // Don't include project_id in updates to avoid UUID issues
 onSave(updates);
 onOpenChange(false);
+  };
+
+  const handleDelete = () => {
+    if (onDelete && task) {
+      onDelete(task.id);
+      onOpenChange(false);
+    }
   };
 
   // Get project and workspace info for display
@@ -185,15 +193,21 @@ onOpenChange(false);
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end space-x-2 pt-4 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            <X className="w-4 h-4 mr-2" />
-            Cancel
+        <div className="flex justify-between pt-4 border-t">
+          <Button variant="destructive" onClick={handleDelete}>
+            <Trash2 className="w-4 h-4 mr-2" />
+            Delete Task
           </Button>
-          <Button onClick={handleSave}>
-            <Save className="w-4 h-4 mr-2" />
-            Save Changes
-          </Button>
+          <div className="flex space-x-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              <X className="w-4 h-4 mr-2" />
+              Cancel
+            </Button>
+            <Button onClick={handleSave}>
+              <Save className="w-4 h-4 mr-2" />
+              Save Changes
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

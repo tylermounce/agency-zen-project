@@ -16,6 +16,7 @@ export const useUnifiedData = () => {
     createProject,
     createTask,
     updateTask,
+    deleteTask,
     updateProject,
     updateWorkspace,
     deleteWorkspace,
@@ -65,6 +66,18 @@ export const useUnifiedData = () => {
       console.log('Task update successful');
     } catch (error) {
       console.error('Failed to update task:', error);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    console.log('useUnifiedData handleDeleteTask called');
+    console.log('Task ID:', taskId);
+    try {
+      await deleteTask(taskId);
+      console.log('Task delete successful');
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+      throw error;
     }
   };
 
@@ -118,6 +131,7 @@ export const useUnifiedData = () => {
     
     // Actions
     updateTask: handleUpdateTask,
+    deleteTask: handleDeleteTask,
     createWorkspace,
     createProject,
     createTask,

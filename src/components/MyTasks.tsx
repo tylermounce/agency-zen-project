@@ -22,6 +22,7 @@ export const MyTasks = () => {
     workspaces,
     projects,
     updateTask,
+    deleteTask,
     createTask,
     createWorkspace,
     loading
@@ -208,6 +209,14 @@ export const MyTasks = () => {
       await updateTask((selectedTask as any).id, payload);
     } catch (error) {
       console.error('Error updating task:', error);
+    }
+  };
+
+  const handleTaskDelete = async (taskId: string) => {
+    try {
+      await deleteTask(taskId);
+    } catch (error) {
+      console.error('Error deleting task:', error);
     }
   };
 
@@ -542,6 +551,7 @@ export const MyTasks = () => {
         open={isTaskDetailOpen}
         onOpenChange={setIsTaskDetailOpen}
         onSave={handleTaskSave}
+        onDelete={handleTaskDelete}
       />
     </div>
   );

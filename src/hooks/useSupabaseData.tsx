@@ -127,6 +127,23 @@ export const useSupabaseData = () => {
     }
   };
 
+  // Delete task
+  const deleteTask = async (taskId: string) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskId);
+
+      if (error) throw error;
+      
+      setTasks(prev => prev.filter(task => task.id !== taskId));
+    } catch (err) {
+      console.error('Error deleting task:', err);
+      throw err;
+    }
+  };
+
   // Update project
   const updateProject = async (projectId: string, updates: Partial<Project>) => {
     try {
@@ -198,6 +215,7 @@ export const useSupabaseData = () => {
     createProject,
     createTask,
     updateTask,
+    deleteTask,
     updateProject,
     updateWorkspace,
     deleteWorkspace,
