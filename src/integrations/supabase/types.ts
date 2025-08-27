@@ -504,6 +504,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_mention_notification: {
+        Args: {
+          p_content: string
+          p_message_id: string
+          p_sender_name: string
+          p_thread_id: string
+          p_thread_type: string
+          p_workspace_id?: string
+          target_user_id: string
+        }
+        Returns: string
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]

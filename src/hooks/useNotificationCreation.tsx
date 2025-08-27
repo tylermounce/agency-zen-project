@@ -25,82 +25,43 @@ export const useNotificationCreation = () => {
 
       const senderName = senderProfile?.full_name || user.email || 'Someone';
 
-      // Create notifications for mentioned users
-      const notifications = mentionedUserIds.map(userId => ({
-        user_id: userId,
-        message_id: messageId, // Use the actual message ID
-        content: `${senderName} mentioned you: ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`,
-        sender_name: senderName,
-        thread_id: threadId,
-        thread_type: threadType,
-        workspace_id: workspaceId || null,
-        is_read: false,
-        notification_type: 'mention' // Add a type field for filtering
-      }));
+      // Create notifications for mentioned users using the secure function
+      const createdNotifications = [];
+      
+      for (const userId of mentionedUserIds) {
+        try {
+          const { data, error } = await supabase.rpc('create_mention_notification', {
+            target_user_id: userId,
+            p_message_id: messageId,
+            p_content: `${senderName} mentioned you: ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`,
+            p_sender_name: senderName,
+            p_thread_id: threadId,
+            p_thread_type: threadType,
+            p_workspace_id: workspaceId || null
+          });
 
-      const { error } = await supabase
-        .from('notifications')
-        .insert(notifications);
+          if (error) {
+            console.error(`Error creating mention notification for user ${userId}:`, error);
+            // Continue with other notifications even if one fails
+            continue;
+          }
 
-      if (error) {
-        console.error('Error creating mention notifications:', error);
-        throw error;
+          createdNotifications.push(data);
+        } catch (error) {
+          console.error(`Error creating mention notification for user ${userId}:`, error);
+          // Continue with other notifications even if one fails
+          continue;
+        }
       }
 
-      console.log(`Created ${notifications.length} mention notifications`);
+      console.log(`Created ${createdNotifications.length} mention notifications`);
     } catch (error) {
       console.error('Error creating mention notifications:', error);
       throw error;
     }
   }, [user]);
 
-  // Helper function to create other types of notifications
-  const createNotification = useCallback(async (
-    userId: string,
-    content: string,
-    threadId: string,
-    threadType: string,
-    messageId?: string,
-    workspaceId?: string,
-    notificationType: string = 'message'
-  ) => {
-    if (!user) return;
-
-    try {
-      const { data: senderProfile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', user.id)
-        .single();
-
-      const senderName = senderProfile?.full_name || user.email || 'Someone';
-
-      const { error } = await supabase
-        .from('notifications')
-        .insert({
-          user_id: userId,
-          message_id: messageId || null,
-          content,
-          sender_name: senderName,
-          thread_id: threadId,
-          thread_type: threadType,
-          workspace_id: workspaceId || null,
-          is_read: false,
-          notification_type: notificationType
-        });
-
-      if (error) {
-        console.error('Error creating notification:', error);
-        throw error;
-      }
-    } catch (error) {
-      console.error('Error creating notification:', error);
-      throw error;
-    }
-  }, [user]);
-
   return { 
-    createMentionNotifications,
-    createNotification 
+    createMentionNotifications
   };
 };
