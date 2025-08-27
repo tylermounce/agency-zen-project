@@ -39,7 +39,7 @@ export const MyTasks = () => {
   const [newTaskAssignee, setNewTaskAssignee] = useState('');
   const [newTaskDueDate, setNewTaskDueDate] = useState(new Date().toISOString().split('T')[0]);
   const [newTaskNotes, setNewTaskNotes] = useState('');
-  const [isPersonalTask, setIsPersonalTask] = useState(false);
+  const [isPersonalTask, setIsPersonalTask] = useState(true);
   const [selectedTask, setSelectedTask] = useState(null);
   const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
   
@@ -179,7 +179,7 @@ export const MyTasks = () => {
       setNewTaskAssignee(user?.id || '');
       setNewTaskDueDate(new Date().toISOString().split('T')[0]);
       setNewTaskNotes('');
-      setIsPersonalTask(false);
+      setIsPersonalTask(true);
       setIsNewTaskOpen(false);
     } catch (error) {
       console.error('Error creating task:', error);
@@ -414,8 +414,8 @@ export const MyTasks = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div className="relative">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="relative sm:col-span-2 lg:col-span-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
                 placeholder="Search my tasks..."
@@ -424,13 +424,13 @@ export const MyTasks = () => {
                 className="pl-10"
               />
             </div>
-            <div>
-              <label className="text-sm font-medium">Status</label>
+            <div className="space-y-1">
+              <label className="text-sm font-medium block">Status</label>
               <Select 
                 value={filterStatus.length === 4 ? "all" : filterStatus.join(",")} 
                 onValueChange={() => {}}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue>
                     {filterStatus.length === 4 ? "All Status" : 
                      filterStatus.length === 0 ? "No Status Selected" :
@@ -438,7 +438,7 @@ export const MyTasks = () => {
                      `${filterStatus.length} Selected`}
                   </SelectValue>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-50 bg-white border border-gray-200 shadow-lg">
                   {[
                     { value: 'todo', label: 'To Do' },
                     { value: 'in-progress', label: 'In Progress' },
@@ -457,7 +457,7 @@ export const MyTasks = () => {
                           }
                         }}
                       />
-                      <label htmlFor={`status-${status.value}`} className="text-sm cursor-pointer">
+                      <label htmlFor={`status-${status.value}`} className="text-sm cursor-pointer flex-1">
                         {status.label}
                       </label>
                     </div>
@@ -465,30 +465,36 @@ export const MyTasks = () => {
                 </SelectContent>
               </Select>
             </div>
-            <Select value={filterPriority} onValueChange={setFilterPriority}>
-              <SelectTrigger>
-                <SelectValue placeholder="Priority" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Priority</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterWorkspace} onValueChange={setFilterWorkspace}>
-              <SelectTrigger>
-                <SelectValue placeholder="Workspace" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Workspaces</SelectItem>
-                {workspaces.map((workspace) => (
-                  <SelectItem key={workspace.id} value={workspace.name}>
-                    {workspace.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-1">
+              <label className="text-sm font-medium block">Priority</label>
+              <Select value={filterPriority} onValueChange={setFilterPriority}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All Priority" />
+                </SelectTrigger>
+                <SelectContent className="z-50 bg-white border border-gray-200 shadow-lg">
+                  <SelectItem value="all">All Priority</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium block">Workspace</label>
+              <Select value={filterWorkspace} onValueChange={setFilterWorkspace}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All Workspaces" />
+                </SelectTrigger>
+                <SelectContent className="z-50 bg-white border border-gray-200 shadow-lg">
+                  <SelectItem value="all">All Workspaces</SelectItem>
+                  {workspaces.map((workspace) => (
+                    <SelectItem key={workspace.id} value={workspace.name}>
+                      {workspace.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>

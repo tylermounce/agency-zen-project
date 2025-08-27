@@ -134,43 +134,72 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-gray-50">
         {/* Header for My Tasks */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" onClick={() => setShowMyTasks(false)}>
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <Button variant="ghost" onClick={() => setShowMyTasks(false)} size="sm">
                 ← Back
               </Button>
-              <h1 className="text-2xl font-semibold text-gray-900">My Tasks</h1>
+              <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">My Tasks</h1>
             </div>
-            <div className="flex items-center space-x-3">
-              <Button variant="outline" size="sm" onClick={() => setShowMasterInbox(true)}>
-                <Inbox className="w-4 h-4 mr-2" />
-                Master Inbox
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Avatar className="w-8 h-8 cursor-pointer">
-                    <AvatarFallback>{getUserInitials(user?.email || '')}</AvatarFallback>
-                  </Avatar>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem onClick={() => navigate('/settings')}>
-                    <SettingsIcon className="w-4 h-4 mr-2" />
-                    Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={signOut}>
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              {/* Mobile: Only user avatar */}
+              <div className="sm:hidden">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Avatar className="w-8 h-8 cursor-pointer">
+                      <AvatarFallback>{getUserInitials(user?.email || '')}</AvatarFallback>
+                    </Avatar>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem onClick={() => setShowMasterInbox(true)}>
+                      <Inbox className="w-4 h-4 mr-2" />
+                      Master Inbox
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate('/settings')}>
+                      <SettingsIcon className="w-4 h-4 mr-2" />
+                      Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={signOut}>
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              {/* Desktop: Master Inbox button + user avatar */}
+              <div className="hidden sm:flex items-center space-x-3">
+                <Button variant="outline" size="sm" onClick={() => setShowMasterInbox(true)}>
+                  <Inbox className="w-4 h-4 mr-2" />
+                  Master Inbox
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Avatar className="w-8 h-8 cursor-pointer">
+                      <AvatarFallback>{getUserInitials(user?.email || '')}</AvatarFallback>
+                    </Avatar>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem onClick={() => navigate('/settings')}>
+                      <SettingsIcon className="w-4 h-4 mr-2" />
+                      Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={signOut}>
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
           </div>
         </div>
 
         {/* My Tasks Content */}
-        <div className="px-6 py-6">
+        <div className="px-4 sm:px-6 py-6">
           <MyTasks />
         </div>
       </div>
@@ -186,39 +215,72 @@ const Index = () => {
       />
       <SidebarInset>
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <SidebarTrigger className="mr-1" />
-              <h1 className="text-2xl font-semibold text-gray-900">Agency Ops</h1>
+              <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Agency Ops</h1>
             </div>
-            <div className="flex items-center space-x-3">
-              <Button variant="outline" size="sm" onClick={() => setShowMyTasks(true)}>
-                <User className="w-4 h-4 mr-2" />
-                My Tasks
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setShowMasterInbox(true)}>
-                <Inbox className="w-4 h-4 mr-2" />
-                Master Inbox
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Avatar className="w-8 h-8 cursor-pointer">
-                    <AvatarFallback>{getUserInitials(user?.email || '')}</AvatarFallback>
-                  </Avatar>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem onClick={() => navigate('/settings')}>
-                    <SettingsIcon className="w-4 h-4 mr-2" />
-                    Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={signOut}>
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              {/* Mobile: Only user avatar */}
+              <div className="sm:hidden">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Avatar className="w-8 h-8 cursor-pointer">
+                      <AvatarFallback>{getUserInitials(user?.email || '')}</AvatarFallback>
+                    </Avatar>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem onClick={() => setShowMyTasks(true)}>
+                      <User className="w-4 h-4 mr-2" />
+                      My Tasks
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setShowMasterInbox(true)}>
+                      <Inbox className="w-4 h-4 mr-2" />
+                      Master Inbox
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate('/settings')}>
+                      <SettingsIcon className="w-4 h-4 mr-2" />
+                      Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={signOut}>
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              {/* Desktop: My Tasks + Master Inbox buttons + user avatar */}
+              <div className="hidden sm:flex items-center space-x-3">
+                <Button variant="outline" size="sm" onClick={() => setShowMyTasks(true)}>
+                  <User className="w-4 h-4 mr-2" />
+                  My Tasks
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setShowMasterInbox(true)}>
+                  <Inbox className="w-4 h-4 mr-2" />
+                  Master Inbox
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Avatar className="w-8 h-8 cursor-pointer">
+                      <AvatarFallback>{getUserInitials(user?.email || '')}</AvatarFallback>
+                    </Avatar>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem onClick={() => navigate('/settings')}>
+                      <SettingsIcon className="w-4 h-4 mr-2" />
+                      Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={signOut}>
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
           </div>
         </div>
