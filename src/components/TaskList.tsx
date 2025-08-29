@@ -16,6 +16,7 @@ import { TaskDetail } from '@/components/TaskDetail';
 import { useUnifiedData } from '@/hooks/useUnifiedData';
 import { useUsers } from '@/hooks/useUsers';
 import { Task } from '@/types';
+import { formatters } from '@/lib/timezone';
 
 interface TaskListProps {
   workspaceId: string;
@@ -179,7 +180,7 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
             <span className="truncate">{project?.title || 'General Tasks'}</span>
             <div className="flex items-center space-x-1">
               <Calendar className="w-3 h-3" />
-              <span>{new Date(task.due_date + 'T12:00:00').toLocaleDateString()}</span>
+              <span>{formatters.dateOnly(task.due_date + 'T12:00:00')}</span>
             </div>
           </div>
         </div>

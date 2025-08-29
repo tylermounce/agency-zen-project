@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { MentionHighlight } from '@/components/MentionHighlight';
 import { useMessaging } from '@/hooks/useMessaging';
+import { formatters } from '@/lib/timezone';
 
 interface ChannelDiscussionProps {
   workspaceId: string;
@@ -297,7 +298,7 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <span className="font-semibold">{getAuthorName(message.sender_id)}</span>
-                          <span className="text-sm text-gray-500">{formatTimestamp(message.created_at)}</span>
+                          <span className="text-sm text-gray-500">{formatters.timeOnly(message.created_at)}</span>
                         </div>
                         {message.sender_id === user?.id && (
                           <DropdownMenu>

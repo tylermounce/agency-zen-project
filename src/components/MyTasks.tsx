@@ -13,6 +13,7 @@ import { Plus, Calendar, User, Filter, Search, ChevronDown, ChevronRight, Eye, E
 import { TaskDetail } from '@/components/TaskDetail';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUnifiedData } from '@/hooks/useUnifiedData';
+import { formatters } from '@/lib/timezone';
 
 export const MyTasks = () => {
   const { user } = useAuth();
@@ -249,7 +250,7 @@ export const MyTasks = () => {
           <span className="text-blue-600">{task.workspace}</span>
           <div className="flex items-center space-x-1">
             <Calendar className="w-3 h-3" />
-            <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+            <span>{formatters.dateOnly(task.dueDate)}</span>
           </div>
         </div>
       </div>

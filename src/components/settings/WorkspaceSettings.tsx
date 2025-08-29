@@ -14,6 +14,7 @@ import { Plus, MoreHorizontal, Building, Edit, Trash2, Users, X } from 'lucide-r
 import { useUnifiedData } from '@/hooks/useUnifiedData';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useToast } from '@/hooks/use-toast';
+import { formatters } from '@/lib/timezone';
 
 export const WorkspaceSettings = () => {
   const { workspaces, createWorkspace, updateWorkspace, deleteWorkspace, getWorkspaceTaskCounts, users } = useUnifiedData();
@@ -264,7 +265,7 @@ export const WorkspaceSettings = () => {
                         </div>
                       </TableCell>
                       <TableCell className="text-sm text-gray-500">
-                        {(workspace as any).created_at ? new Date((workspace as any).created_at).toLocaleDateString() : 'Unknown'}
+                        {(workspace as any).created_at ? formatters.dateOnly((workspace as any).created_at) : 'Unknown'}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>

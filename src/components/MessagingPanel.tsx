@@ -16,6 +16,7 @@ import { MentionHighlight } from '@/components/MentionHighlight';
 import { useMessaging } from '@/hooks/useMessaging';
 import { useUsers } from '@/hooks/useUsers';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatters } from '@/lib/timezone';
 
 import { useNotifications } from '@/hooks/useNotifications';
 import { useUnifiedData } from '@/hooks/useUnifiedData';
@@ -232,8 +233,8 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
                     </div>
                     <span className="text-xs text-gray-500">
                       {conversation.last_message_at 
-                        ? new Date(conversation.last_message_at).toLocaleDateString()
-                        : new Date(conversation.created_at).toLocaleDateString()
+                        ? formatters.dateOnly(conversation.last_message_at)
+                        : formatters.dateOnly(conversation.created_at)
                       }
                     </span>
                   </div>
@@ -301,7 +302,7 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
                                 {isCurrentUser ? 'You' : (sender?.full_name || 'Unknown User')}
                               </span>
                               <span className="text-xs text-gray-500">
-                                {new Date(message.created_at).toLocaleString()}
+                                {formatters.dateTime(message.created_at)}
                               </span>
                             </div>
                             <div className={`rounded-lg p-3 text-sm ${

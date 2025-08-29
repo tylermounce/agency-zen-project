@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Shield, ShieldCheck, MoreHorizontal, Users } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { formatters } from '@/lib/timezone';
 
 interface UserWithRole {
   id: string;
@@ -265,7 +266,7 @@ export const UserManagement = () => {
                       </div>
                     </TableCell>
                     <TableCell className="text-sm text-gray-500">
-                      {new Date(user.created_at).toLocaleDateString()}
+                      {formatters.dateOnly(user.created_at)}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>

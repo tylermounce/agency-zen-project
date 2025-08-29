@@ -11,6 +11,7 @@ import { useProjectMembers } from '@/hooks/useProjectMembers';
 import { useState } from 'react';
 import { useUnifiedData } from '@/hooks/useUnifiedData';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatters } from '@/lib/timezone';
 
 interface ProjectBoardProps {
   workspaceId: string;
@@ -92,8 +93,8 @@ export const ProjectBoard = ({ workspaceId, onProjectClick, onProjectMessageClic
               <Calendar className="w-4 h-4" />
               <span>
                 {project.due_date 
-                  ? `Due ${new Date(project.due_date).toLocaleDateString()}`
-                  : `Created ${new Date(project.created_at).toLocaleDateString()}`
+                  ? `Due ${formatters.dateOnly(project.due_date)}`
+                  : `Created ${formatters.dateOnly(project.created_at)}`
                 }
               </span>
             </div>

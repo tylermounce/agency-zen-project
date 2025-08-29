@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { formatters } from '@/lib/timezone';
 
 export const ProfileSettings = () => {
   const { user } = useAuth();
@@ -126,11 +127,11 @@ export const ProfileSettings = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Account Created:</span>
-              <span>{user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}</span>
+              <span>{user?.created_at ? formatters.dateOnly(user.created_at) : 'Unknown'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Last Sign In:</span>
-              <span>{user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : 'Unknown'}</span>
+              <span>{user?.last_sign_in_at ? formatters.dateOnly(user.last_sign_in_at) : 'Unknown'}</span>
             </div>
           </div>
         </CardContent>

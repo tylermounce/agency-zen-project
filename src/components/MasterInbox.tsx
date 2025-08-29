@@ -12,6 +12,7 @@ import { MentionHighlight } from '@/components/MentionHighlight';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Search, Inbox, MessageSquare, Hash, User, ArrowLeft, Plus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { formatters } from '@/lib/timezone';
 
 import { useNotifications } from '@/hooks/useNotifications';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -241,8 +242,8 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
                     </div>
                     <span className="text-xs text-gray-500">
                       {conversation.last_message_at 
-                        ? new Date(conversation.last_message_at).toLocaleDateString()
-                        : new Date(conversation.created_at).toLocaleDateString()
+                        ? formatters.dateOnly(conversation.last_message_at)
+                        : formatters.dateOnly(conversation.created_at)
                       }
                     </span>
                   </div>
@@ -299,7 +300,7 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
                                   {isCurrentUser ? 'You' : (sender?.full_name || 'Unknown User')}
                                 </span>
                                 <span className="text-xs text-gray-500">
-                                  {new Date(message.created_at).toLocaleString()}
+                                  {formatters.dateTime(message.created_at)}
                                 </span>
                               </div>
                               <div className={`rounded-lg p-3 text-sm ${

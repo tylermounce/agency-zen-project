@@ -4,6 +4,7 @@ import { MentionHighlight } from '@/components/MentionHighlight';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatters } from '@/lib/timezone';
 
 interface InboxProps {
   workspaceId?: string; // Pass workspaceId for workspace-specific inbox
@@ -86,7 +87,7 @@ export const Inbox: React.FC<InboxProps> = ({ workspaceId }) => {
                   
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">
-                      {new Date(notification.created_at).toLocaleString()}
+                      {formatters.dateTime(notification.created_at)}
                     </span>
                     <div className="flex gap-2">
                       {!notification.is_read && (
