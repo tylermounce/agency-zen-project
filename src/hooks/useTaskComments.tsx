@@ -1,7 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { TaskComment } from '@/types';
+
+interface TaskComment {
+  id: string;
+  task_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
 
 interface TaskCommentWithUser extends TaskComment {
   user_name?: string;
@@ -22,16 +30,18 @@ export const useTaskComments = (taskId: string | null) => {
     setError(null);
 
     try {
-      const { data, error: fetchError } = await supabase
-        .from('task_comments')
+      const { data, error: fetchError } = await (supabase
+        .from('task_comments' as any)
         .select('*')
         .eq('task_id', taskId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: true }) as any);
 
       if (fetchError) throw fetchError;
 
+      const typedData = (data || []) as TaskComment[];
+      
       // Fetch user profiles for the comments
-      const userIds = [...new Set((data || []).map(c => c.user_id))];
+      const userIds = [...new Set(typedData.map(c => c.user_id))];
 
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
@@ -41,7 +51,7 @@ export const useTaskComments = (taskId: string | null) => {
 
         const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
 
-        const commentsWithUsers: TaskCommentWithUser[] = (data || []).map(comment => {
+        const commentsWithUsers: TaskCommentWithUser[] = typedData.map(comment => {
           const profile = profileMap.get(comment.user_id);
           const fullName = profile?.full_name || profile?.email || 'Unknown User';
           const initials = fullName
@@ -75,21 +85,23 @@ export const useTaskComments = (taskId: string | null) => {
     if (!taskId || !user || !content.trim()) return false;
 
     try {
-      const { data, error: insertError } = await supabase
-        .from('task_comments')
+      const { data, error: insertError } = await (supabase
+        .from('task_comments' as any)
         .insert([{
           task_id: taskId,
           user_id: user.id,
           content: content.trim()
         }])
         .select()
-        .single();
+        .single() as any);
 
       if (insertError) throw insertError;
 
+      const typedData = data as TaskComment;
+      
       // Add to local state with user info
       const newComment: TaskCommentWithUser = {
-        ...data,
+        ...typedData,
         user_name: user.email || 'You',
         user_initials: (user.email?.[0] || 'U').toUpperCase()
       };
@@ -108,11 +120,11 @@ export const useTaskComments = (taskId: string | null) => {
     if (!user || !content.trim()) return false;
 
     try {
-      const { error: updateError } = await supabase
-        .from('task_comments')
+      const { error: updateError } = await (supabase
+        .from('task_comments' as any)
         .update({ content: content.trim(), updated_at: new Date().toISOString() })
         .eq('id', commentId)
-        .eq('user_id', user.id);
+        .eq('user_id', user.id) as any);
 
       if (updateError) throw updateError;
 
@@ -136,11 +148,11 @@ export const useTaskComments = (taskId: string | null) => {
     if (!user) return false;
 
     try {
-      const { error: deleteError } = await supabase
-        .from('task_comments')
+      const { error: deleteError } = await (supabase
+        .from('task_comments' as any)
         .delete()
         .eq('id', commentId)
-        .eq('user_id', user.id);
+        .eq('user_id', user.id) as any);
 
       if (deleteError) throw deleteError;
 

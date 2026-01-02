@@ -194,8 +194,10 @@ export const useNotifications = (workspaceId?: string) => {
   useEffect(() => {
     if (!user) return;
 
+    const channelName = `notifications-${user.id}-${workspaceId || 'all'}`;
+    
     const notificationsChannel = supabase
-      .channel('notifications-changes')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -212,7 +214,11 @@ export const useNotifications = (workspaceId?: string) => {
             
             // Only add if it matches the current workspace filter
             if (!workspaceId || newNotification.workspace_id === workspaceId) {
-              setNotifications(prev => [newNotification, ...prev]);
+              setNotifications(prev => {
+                // Avoid duplicates
+                if (prev.some(n => n.id === newNotification.id)) return prev;
+                return [newNotification, ...prev];
+              });
               if (!newNotification.is_read) {
                 setUnreadCount(prev => prev + 1);
               }
@@ -226,12 +232,13 @@ export const useNotifications = (workspaceId?: string) => {
             );
           } else if (payload.eventType === 'DELETE') {
             const deletedId = payload.old.id;
-            const deletedNotification = notifications.find(n => n.id === deletedId);
-            setNotifications(prev => prev.filter(n => n.id !== deletedId));
-            
-            if (deletedNotification && !deletedNotification.is_read) {
-              setUnreadCount(prev => Math.max(0, prev - 1));
-            }
+            setNotifications(prev => {
+              const deletedNotification = prev.find(n => n.id === deletedId);
+              if (deletedNotification && !deletedNotification.is_read) {
+                setUnreadCount(c => Math.max(0, c - 1));
+              }
+              return prev.filter(n => n.id !== deletedId);
+            });
           }
         }
       )
@@ -240,7 +247,7 @@ export const useNotifications = (workspaceId?: string) => {
     return () => {
       supabase.removeChannel(notificationsChannel);
     };
-  }, [user, workspaceId, notifications]);
+  }, [user?.id, workspaceId]);
 
   // Fetch notifications on mount and when dependencies change
   useEffect(() => {
