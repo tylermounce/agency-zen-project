@@ -90,12 +90,10 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newDisplayValue = e.target.value;
     const cursorPosition = e.target.selectionStart;
-    
-    console.log('📝 TextareaWithMentions input change:', { newDisplayValue, cursorPosition });
-    
+
     // Update display value immediately for responsive UI
     setDisplayValue(newDisplayValue);
-    
+
     // Convert display format to storage format before saving
     const storageValue = convertDisplayToStorage(newDisplayValue);
     onChange(storageValue);
@@ -145,12 +143,8 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
   }, [mentionState, closeMentions, handleUserSelect, value, onChange, onKeyDown]);
 
   const handleUserSelectFromDropdown = useCallback((user: any) => {
-    console.log('🎯 User selected from dropdown:', { user, currentDisplayValue: displayValue, currentCursor: textareaRef.current?.selectionStart });
-    
     const result = handleUserSelect(user, displayValue, textareaRef.current?.selectionStart || 0);
-    
-    console.log('🎯 User select result:', result);
-    
+
     // Update display names cache
     setUserDisplayNames(prev => ({ ...prev, [user.id]: user.full_name || 'Unknown User' }));
     

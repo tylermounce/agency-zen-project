@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Task, Project, Workspace } from '@/types';
+import { toast } from '@/hooks/use-toast';
 
 export const useSupabaseData = () => {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -10,16 +11,16 @@ export const useSupabaseData = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Fetch all data
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      
+
       // Fetch workspaces
       const { data: workspacesData, error: workspacesError } = await supabase
         .from('workspaces')
         .select('*')
         .order('name');
-      
+
       if (workspacesError) throw workspacesError;
 
       // Fetch projects
@@ -27,7 +28,7 @@ export const useSupabaseData = () => {
         .from('projects')
         .select('*')
         .order('title');
-      
+
       if (projectsError) throw projectsError;
 
       // Fetch tasks
@@ -35,20 +36,25 @@ export const useSupabaseData = () => {
         .from('tasks')
         .select('*')
         .order('created_at');
-      
+
       if (tasksError) throw tasksError;
 
       setWorkspaces(workspacesData || []);
       setProjects(projectsData as Project[] || []);
       setTasks(tasksData as Task[] || []);
-      
+
     } catch (err) {
       console.error('Error fetching data:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch data');
+      toast({
+        title: "Error loading data",
+        description: err instanceof Error ? err.message : 'Failed to fetch data',
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Create workspace
   const createWorkspace = async (workspace: Omit<Workspace, 'id' | 'created_at' | 'updated_at'>) => {
@@ -60,11 +66,20 @@ export const useSupabaseData = () => {
         .single();
 
       if (error) throw error;
-      
+
       setWorkspaces(prev => [...prev, data]);
+      toast({
+        title: "Workspace created",
+        description: `"${workspace.name}" has been created successfully.`,
+      });
       return data;
     } catch (err) {
       console.error('Error creating workspace:', err);
+      toast({
+        title: "Failed to create workspace",
+        description: err instanceof Error ? err.message : 'An error occurred',
+        variant: "destructive",
+      });
       throw err;
     }
   };
@@ -79,11 +94,20 @@ export const useSupabaseData = () => {
         .single();
 
       if (error) throw error;
-      
+
       setProjects(prev => [...prev, data as Project]);
+      toast({
+        title: "Project created",
+        description: `"${project.title}" has been created successfully.`,
+      });
       return data;
     } catch (err) {
       console.error('Error creating project:', err);
+      toast({
+        title: "Failed to create project",
+        description: err instanceof Error ? err.message : 'An error occurred',
+        variant: "destructive",
+      });
       throw err;
     }
   };
@@ -98,11 +122,20 @@ export const useSupabaseData = () => {
         .single();
 
       if (error) throw error;
-      
+
       setTasks(prev => [...prev, data as Task]);
+      toast({
+        title: "Task created",
+        description: `"${task.title}" has been added.`,
+      });
       return data;
     } catch (err) {
       console.error('Error creating task:', err);
+      toast({
+        title: "Failed to create task",
+        description: err instanceof Error ? err.message : 'An error occurred',
+        variant: "destructive",
+      });
       throw err;
     }
   };
@@ -118,11 +151,20 @@ export const useSupabaseData = () => {
         .single();
 
       if (error) throw error;
-      
+
       setTasks(prev => prev.map(task => task.id === taskId ? data as Task : task));
+      toast({
+        title: "Task updated",
+        description: "Changes saved successfully.",
+      });
       return data;
     } catch (err) {
       console.error('Error updating task:', err);
+      toast({
+        title: "Failed to update task",
+        description: err instanceof Error ? err.message : 'An error occurred',
+        variant: "destructive",
+      });
       throw err;
     }
   };
@@ -136,10 +178,19 @@ export const useSupabaseData = () => {
         .eq('id', taskId);
 
       if (error) throw error;
-      
+
       setTasks(prev => prev.filter(task => task.id !== taskId));
+      toast({
+        title: "Task deleted",
+        description: "The task has been removed.",
+      });
     } catch (err) {
       console.error('Error deleting task:', err);
+      toast({
+        title: "Failed to delete task",
+        description: err instanceof Error ? err.message : 'An error occurred',
+        variant: "destructive",
+      });
       throw err;
     }
   };
@@ -155,11 +206,20 @@ export const useSupabaseData = () => {
         .single();
 
       if (error) throw error;
-      
+
       setProjects(prev => prev.map(project => project.id === projectId ? data as Project : project));
+      toast({
+        title: "Project updated",
+        description: "Changes saved successfully.",
+      });
       return data;
     } catch (err) {
       console.error('Error updating project:', err);
+      toast({
+        title: "Failed to update project",
+        description: err instanceof Error ? err.message : 'An error occurred',
+        variant: "destructive",
+      });
       throw err;
     }
   };
@@ -175,11 +235,20 @@ export const useSupabaseData = () => {
         .single();
 
       if (error) throw error;
-      
+
       setWorkspaces(prev => prev.map(workspace => workspace.id === workspaceId ? data : workspace));
+      toast({
+        title: "Workspace updated",
+        description: "Changes saved successfully.",
+      });
       return data;
     } catch (err) {
       console.error('Error updating workspace:', err);
+      toast({
+        title: "Failed to update workspace",
+        description: err instanceof Error ? err.message : 'An error occurred',
+        variant: "destructive",
+      });
       throw err;
     }
   };
@@ -193,16 +262,104 @@ export const useSupabaseData = () => {
         .eq('id', workspaceId);
 
       if (error) throw error;
-      
+
       setWorkspaces(prev => prev.filter(workspace => workspace.id !== workspaceId));
+      toast({
+        title: "Workspace deleted",
+        description: "The workspace has been removed.",
+      });
     } catch (err) {
       console.error('Error deleting workspace:', err);
+      toast({
+        title: "Failed to delete workspace",
+        description: err instanceof Error ? err.message : 'An error occurred',
+        variant: "destructive",
+      });
       throw err;
     }
   };
 
+  // Initial fetch
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  // Real-time subscriptions for live updates
+  useEffect(() => {
+    // Subscribe to task changes
+    const tasksChannel = supabase
+      .channel('tasks-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tasks' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setTasks(prev => {
+              if (prev.some(t => t.id === (payload.new as Task).id)) return prev;
+              return [...prev, payload.new as Task];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            setTasks(prev => prev.map(t =>
+              t.id === (payload.new as Task).id ? payload.new as Task : t
+            ));
+          } else if (payload.eventType === 'DELETE') {
+            setTasks(prev => prev.filter(t => t.id !== (payload.old as Task).id));
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to project changes
+    const projectsChannel = supabase
+      .channel('projects-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'projects' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setProjects(prev => {
+              if (prev.some(p => p.id === (payload.new as Project).id)) return prev;
+              return [...prev, payload.new as Project];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            setProjects(prev => prev.map(p =>
+              p.id === (payload.new as Project).id ? payload.new as Project : p
+            ));
+          } else if (payload.eventType === 'DELETE') {
+            setProjects(prev => prev.filter(p => p.id !== (payload.old as Project).id));
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to workspace changes
+    const workspacesChannel = supabase
+      .channel('workspaces-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'workspaces' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setWorkspaces(prev => {
+              if (prev.some(w => w.id === (payload.new as Workspace).id)) return prev;
+              return [...prev, payload.new as Workspace];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            setWorkspaces(prev => prev.map(w =>
+              w.id === (payload.new as Workspace).id ? payload.new as Workspace : w
+            ));
+          } else if (payload.eventType === 'DELETE') {
+            setWorkspaces(prev => prev.filter(w => w.id !== (payload.old as Workspace).id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(tasksChannel);
+      supabase.removeChannel(projectsChannel);
+      supabase.removeChannel(workspacesChannel);
+    };
   }, []);
 
   return {

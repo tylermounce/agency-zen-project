@@ -6,52 +6,53 @@ interface MentionHighlightProps {
   className?: string;
 }
 
+// Cache for profile lookups
+const profileCache = new Map<string, string>();
+
 export const MentionHighlight: React.FC<MentionHighlightProps> = ({ content, className = '' }) => {
   const [parts, setParts] = useState<React.ReactNode[]>([content]);
 
   useEffect(() => {
     const processMentions = async () => {
-      console.log('🎨 MentionHighlight processing content:', content);
-      
       // Extract user IDs from @{userId:actual-uuid} format and replace with display names
       const mentionPattern = /@\{userId:([^}]+)\}/g;
       const mentions = [...content.matchAll(mentionPattern)];
-      
-      console.log('🎨 Found mentions to highlight:', mentions);
-      
+
       if (mentions.length === 0) {
-        console.log('🎨 No mentions to process, using original content');
         setParts([content]);
         return;
       }
 
       try {
         const userIds = mentions.map(match => match[1]);
-        
-        console.log('🎨 Looking up profiles for user IDs:', userIds);
-        
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', userIds);
 
-        console.log('🎨 Profile lookup result:', profiles);
+        // Check which IDs need to be fetched
+        const uncachedIds = userIds.filter(id => !profileCache.has(id));
 
-        // Build parts array interleaving plain text and mention chips using original indices
+        if (uncachedIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', uncachedIds);
+
+          // Update cache
+          (profiles || []).forEach(profile => {
+            profileCache.set(profile.id, profile.full_name || 'Unknown User');
+          });
+        }
+
+        // Build parts array interleaving plain text and mention chips
         let lastIndex = 0;
         const newParts: React.ReactNode[] = [];
-        
+
         mentions.forEach(match => {
           const matchIndex = match.index ?? 0;
           if (matchIndex > lastIndex) {
             newParts.push(content.slice(lastIndex, matchIndex));
           }
           const userId = match[1];
-          const profile = profiles?.find(p => p.id === userId);
-          const displayName = profile?.full_name || 'Unknown User';
-          
-          console.log(`🎨 Rendering mention chip for ${match[0]} as @${displayName}`);
-          
+          const displayName = profileCache.get(userId) || 'Unknown User';
+
           newParts.push(
             <span
               key={`mention-${matchIndex}-${userId}`}
@@ -62,12 +63,11 @@ export const MentionHighlight: React.FC<MentionHighlightProps> = ({ content, cla
           );
           lastIndex = matchIndex + match[0].length;
         });
-        
+
         if (lastIndex < content.length) {
           newParts.push(content.slice(lastIndex));
         }
-        
-        console.log('🎨 Final processed parts:', newParts);
+
         setParts(newParts);
       } catch (error) {
         console.error('Error processing mentions:', error);
