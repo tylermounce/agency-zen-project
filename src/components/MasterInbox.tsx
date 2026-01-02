@@ -10,7 +10,7 @@ import { TextareaWithMentions } from '@/components/TextareaWithMentions';
 import { FileUploadArea } from '@/components/FileUploadArea';
 import { MentionHighlight } from '@/components/MentionHighlight';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Search, Inbox, MessageSquare, Hash, User, ArrowLeft, Plus } from 'lucide-react';
+import { Send, Search, Inbox, MessageSquare, Hash, User, ArrowLeft, Plus, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatters } from '@/lib/timezone';
 
@@ -30,7 +30,7 @@ interface MasterInboxProps {
 export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
   const { user } = useAuth();
   const { users, loading: usersLoading } = useUsers();
-  const { conversations, messages, sendMessage, createConversation, fetchMessages } = useMessaging();
+  const { conversations, messages, sendMessage, createConversation, fetchMessages, loadMoreMessages, threadPagination } = useMessaging();
   
   const { notifications, unreadCount, hasUnreadInThread, markThreadAsRead, getUnreadCountForThread } = useNotifications();
   const { workspaces, projects } = useUnifiedData();
@@ -150,6 +150,7 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
 
   const currentConversation = conversations.find(c => c.thread_id === selectedThread);
   const currentMessages = selectedThread ? messages[selectedThread] || [] : [];
+  const currentPagination = selectedThread ? threadPagination[selectedThread] : undefined;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -278,6 +279,26 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
               <div className="flex-1 p-6 overflow-hidden">
                 <ScrollArea className="h-full pr-4">
                   <div className="space-y-4">
+                    {/* Load More Button */}
+                    {currentPagination?.hasMore && currentMessages.length > 0 && (
+                      <div className="text-center pb-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => loadMoreMessages(selectedThread)}
+                          disabled={currentPagination?.loading}
+                        >
+                          {currentPagination?.loading ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Loading...
+                            </>
+                          ) : (
+                            'Load older messages'
+                          )}
+                        </Button>
+                      </div>
+                    )}
                     {currentMessages.length === 0 ? (
                       <div className="text-center text-gray-500 py-8">
                         <p>No messages yet</p>
