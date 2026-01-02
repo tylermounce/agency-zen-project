@@ -285,10 +285,11 @@ export const useSupabaseData = () => {
     }
   };
 
-  // Initial fetch
+  // Initial fetch - only run once on mount
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Real-time subscriptions for live updates
   useEffect(() => {

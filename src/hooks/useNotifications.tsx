@@ -249,10 +249,13 @@ export const useNotifications = (workspaceId?: string) => {
     };
   }, [user?.id, workspaceId]);
 
-  // Fetch notifications on mount and when dependencies change
+  // Fetch notifications on mount and when user/workspace changes
   useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+    if (user) {
+      fetchNotifications();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, workspaceId]);
 
   return {
     notifications,
