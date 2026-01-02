@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Calendar, User, Flag, CheckSquare, FileText, Save, X, Trash2 } from 'lucide-react';
 import { Task } from '@/types';
 import { useUnifiedData } from '@/hooks/useUnifiedData';
+import { TaskComments } from '@/components/TaskComments';
 
 interface TaskDetailProps {
   task: Task | null;
@@ -66,7 +67,7 @@ onOpenChange(false);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <CheckSquare className="w-5 h-5" />
@@ -177,18 +178,23 @@ onOpenChange(false);
             </div>
           </div>
 
-          {/* Notes */}
+          {/* Description */}
           <div className="space-y-2">
             <Label className="flex items-center space-x-1">
               <FileText className="w-4 h-4" />
-              <span>Notes</span>
+              <span>Description</span>
             </Label>
             <Textarea
-              placeholder="Add notes about this task..."
+              placeholder="Add a description for this task..."
               value={editedTask.description || ''}
               onChange={(e) => setEditedTask({...editedTask, description: e.target.value})}
-              rows={4}
+              rows={3}
             />
+          </div>
+
+          {/* Task Notes/Comments */}
+          <div className="border-t pt-4">
+            <TaskComments taskId={task.id} />
           </div>
         </div>
 
