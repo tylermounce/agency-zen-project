@@ -6,45 +6,49 @@ interface MentionExtraction {
   displayNames: string[];
 }
 
+// Cache for profile lookups to avoid repeated queries
+const profileCache = new Map<string, string>();
+
 export const useMentionUtils = () => {
   const extractMentionsFromContent = useCallback(async (content: string): Promise<MentionExtraction> => {
-    console.log('🔍 extractMentionsFromContent called with:', content);
-    
     // Extract user IDs from content - match @{userId:actual-uuid} format
     const mentionPattern = /@\{userId:([^}]+)\}/g;
     const mentions = [...content.matchAll(mentionPattern)];
-    
-    console.log('🔍 Mention pattern matches:', mentions);
-    
+
     if (!mentions || mentions.length === 0) {
-      console.log('❌ No mentions found');
       return { mentionedUserIds: [], displayNames: [] };
     }
 
     try {
       // Extract user IDs directly from the stored format
       const mentionedUserIds = mentions.map(match => match[1]);
-      
-      console.log('✅ Extracted user IDs:', mentionedUserIds);
-      
-      // Get display names for the user IDs
-      const { data: profiles, error } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .in('id', mentionedUserIds);
 
-      console.log('👥 Profile lookup result:', { profiles, error });
+      // Check cache first
+      const uncachedIds = mentionedUserIds.filter(id => !profileCache.has(id));
 
-      if (error) {
-        console.error('Error fetching mentioned user profiles:', error);
-        return { mentionedUserIds, displayNames: [] };
+      if (uncachedIds.length > 0) {
+        // Get display names for uncached user IDs
+        const { data: profiles, error } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', uncachedIds);
+
+        if (error) {
+          console.error('Error fetching mentioned user profiles:', error);
+          return { mentionedUserIds, displayNames: [] };
+        }
+
+        // Update cache
+        (profiles || []).forEach(profile => {
+          profileCache.set(profile.id, profile.full_name || 'Unknown User');
+        });
       }
 
-      // Extract display names from matched profiles
-      const displayNames = (profiles || []).map(profile => profile.full_name || 'Unknown User');
-      
-      console.log('✅ Final extraction result:', { mentionedUserIds, displayNames });
-      
+      // Get display names from cache
+      const displayNames = mentionedUserIds.map(id =>
+        profileCache.get(id) || 'Unknown User'
+      );
+
       return { mentionedUserIds, displayNames };
     } catch (error) {
       console.error('Error extracting mentions:', error);
@@ -53,6 +57,11 @@ export const useMentionUtils = () => {
   }, []);
 
   const getUserDisplayNameById = useCallback(async (userId: string): Promise<string | null> => {
+    // Check cache first
+    if (profileCache.has(userId)) {
+      return profileCache.get(userId) || null;
+    }
+
     try {
       const { data: profile, error } = await supabase
         .from('profiles')
@@ -65,15 +74,25 @@ export const useMentionUtils = () => {
         return null;
       }
 
-      return profile?.full_name || null;
+      const displayName = profile?.full_name || null;
+      if (displayName) {
+        profileCache.set(userId, displayName);
+      }
+      return displayName;
     } catch (error) {
       console.error('Error getting user display name:', error);
       return null;
     }
   }, []);
 
+  // Clear cache (useful when profiles update)
+  const clearProfileCache = useCallback(() => {
+    profileCache.clear();
+  }, []);
+
   return {
     extractMentionsFromContent,
-    getUserDisplayNameById
+    getUserDisplayNameById,
+    clearProfileCache
   };
 };
