@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -21,6 +21,7 @@ export const useTaskComments = (taskId: string | null) => {
   const [comments, setComments] = useState<TaskCommentWithUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const subscribedRef = useRef(false);
 
   // Fetch comments for a task
   const fetchComments = useCallback(async () => {
@@ -39,7 +40,7 @@ export const useTaskComments = (taskId: string | null) => {
       if (fetchError) throw fetchError;
 
       const typedData = (data || []) as TaskComment[];
-      
+
       // Fetch user profiles for the comments
       const userIds = [...new Set(typedData.map(c => c.user_id))];
 
@@ -165,18 +166,23 @@ export const useTaskComments = (taskId: string | null) => {
     }
   };
 
-  // Set up real-time subscription
+  // Fetch comments when taskId changes
   useEffect(() => {
     if (!taskId) {
       setComments([]);
       return;
     }
-
     fetchComments();
+  }, [taskId, user?.id]);
 
-    // Subscribe to changes for this task's comments
+  // Set up real-time subscription - separate effect to avoid re-subscription
+  useEffect(() => {
+    if (!taskId) return;
+
+    // Create unique channel name with timestamp to avoid conflicts
+    const channelName = `task_comments_${taskId}_${Date.now()}`;
     const channel = supabase
-      .channel(`task_comments:${taskId}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -187,7 +193,6 @@ export const useTaskComments = (taskId: string | null) => {
         },
         async (payload) => {
           if (payload.eventType === 'INSERT') {
-            // Fetch user info for the new comment
             const newComment = payload.new as TaskComment;
 
             const { data: profile } = await supabase
@@ -211,7 +216,6 @@ export const useTaskComments = (taskId: string | null) => {
             };
 
             setComments(prev => {
-              // Avoid duplicates
               if (prev.some(c => c.id === newComment.id)) return prev;
               return [...prev, commentWithUser];
             });
@@ -231,7 +235,7 @@ export const useTaskComments = (taskId: string | null) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [taskId, fetchComments]);
+  }, [taskId]);
 
   return {
     comments,
