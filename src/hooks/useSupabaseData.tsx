@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Task, Project, Workspace } from '@/types';
 import { toast } from '@/hooks/use-toast';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 export const useSupabaseData = () => {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -9,6 +10,11 @@ export const useSupabaseData = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const channelId = useRef(`${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+  const tasksChannelRef = useRef<RealtimeChannel | null>(null);
+  const projectsChannelRef = useRef<RealtimeChannel | null>(null);
+  const workspacesChannelRef = useRef<RealtimeChannel | null>(null);
 
   // Fetch all data
   const fetchData = useCallback(async () => {
@@ -286,9 +292,20 @@ export const useSupabaseData = () => {
 
   // Real-time subscriptions for live updates
   useEffect(() => {
-    // Subscribe to task changes
+    // Clean up any existing channels first
+    if (tasksChannelRef.current) {
+      supabase.removeChannel(tasksChannelRef.current);
+    }
+    if (projectsChannelRef.current) {
+      supabase.removeChannel(projectsChannelRef.current);
+    }
+    if (workspacesChannelRef.current) {
+      supabase.removeChannel(workspacesChannelRef.current);
+    }
+
+    // Subscribe to task changes with unique channel name
     const tasksChannel = supabase
-      .channel('tasks-realtime')
+      .channel(`tasks-realtime-${channelId.current}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'tasks' },
@@ -308,10 +325,12 @@ export const useSupabaseData = () => {
         }
       )
       .subscribe();
+    
+    tasksChannelRef.current = tasksChannel;
 
-    // Subscribe to project changes
+    // Subscribe to project changes with unique channel name
     const projectsChannel = supabase
-      .channel('projects-realtime')
+      .channel(`projects-realtime-${channelId.current}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'projects' },
@@ -331,10 +350,12 @@ export const useSupabaseData = () => {
         }
       )
       .subscribe();
+    
+    projectsChannelRef.current = projectsChannel;
 
-    // Subscribe to workspace changes
+    // Subscribe to workspace changes with unique channel name
     const workspacesChannel = supabase
-      .channel('workspaces-realtime')
+      .channel(`workspaces-realtime-${channelId.current}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'workspaces' },
@@ -354,11 +375,22 @@ export const useSupabaseData = () => {
         }
       )
       .subscribe();
+    
+    workspacesChannelRef.current = workspacesChannel;
 
     return () => {
-      supabase.removeChannel(tasksChannel);
-      supabase.removeChannel(projectsChannel);
-      supabase.removeChannel(workspacesChannel);
+      if (tasksChannelRef.current) {
+        supabase.removeChannel(tasksChannelRef.current);
+        tasksChannelRef.current = null;
+      }
+      if (projectsChannelRef.current) {
+        supabase.removeChannel(projectsChannelRef.current);
+        projectsChannelRef.current = null;
+      }
+      if (workspacesChannelRef.current) {
+        supabase.removeChannel(workspacesChannelRef.current);
+        workspacesChannelRef.current = null;
+      }
     };
   }, []);
 

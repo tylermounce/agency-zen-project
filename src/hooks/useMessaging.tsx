@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMentionUtils } from '@/hooks/useMentionUtils';
 import { useNotificationCreation } from '@/hooks/useNotificationCreation';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 interface Message {
   id: string;
@@ -33,6 +34,10 @@ export const useMessaging = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<{ [threadId: string]: Message[] }>({});
   const [loading, setLoading] = useState(false);
+  
+  const channelId = useRef(`${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+  const conversationsChannelRef = useRef<RealtimeChannel | null>(null);
+  const messagesChannelRef = useRef<RealtimeChannel | null>(null);
 
   const fetchConversations = async () => {
     if (!user) return;
@@ -225,8 +230,13 @@ export const useMessaging = () => {
   useEffect(() => {
     if (!user) return;
 
+    // Clean up existing channel first
+    if (conversationsChannelRef.current) {
+      supabase.removeChannel(conversationsChannelRef.current);
+    }
+
     const conversationsChannel = supabase
-      .channel('conversations-changes')
+      .channel(`conversations-changes-${user.id}-${channelId.current}`)
       .on(
         'postgres_changes',
         {
@@ -240,9 +250,14 @@ export const useMessaging = () => {
         }
       )
       .subscribe();
+    
+    conversationsChannelRef.current = conversationsChannel;
 
     return () => {
-      supabase.removeChannel(conversationsChannel);
+      if (conversationsChannelRef.current) {
+        supabase.removeChannel(conversationsChannelRef.current);
+        conversationsChannelRef.current = null;
+      }
     };
   }, [user]);
 
@@ -250,8 +265,13 @@ export const useMessaging = () => {
   useEffect(() => {
     if (!user) return;
 
+    // Clean up existing channel first
+    if (messagesChannelRef.current) {
+      supabase.removeChannel(messagesChannelRef.current);
+    }
+
     const messagesChannel = supabase
-      .channel('messages-changes')
+      .channel(`messages-changes-${user.id}-${channelId.current}`)
       .on(
         'postgres_changes',
         {
@@ -276,9 +296,14 @@ export const useMessaging = () => {
         }
       )
       .subscribe();
+    
+    messagesChannelRef.current = messagesChannel;
 
     return () => {
-      supabase.removeChannel(messagesChannel);
+      if (messagesChannelRef.current) {
+        supabase.removeChannel(messagesChannelRef.current);
+        messagesChannelRef.current = null;
+      }
     };
   }, [user]);
 
