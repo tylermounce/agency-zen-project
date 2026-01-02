@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatters } from '@/lib/timezone';
+import { Notification } from '@/types';
 
 interface InboxProps {
   workspaceId?: string; // Pass workspaceId for workspace-specific inbox
@@ -23,7 +24,7 @@ export const Inbox: React.FC<InboxProps> = ({ workspaceId }) => {
 
   const mentionNotifications = getNotificationsByType('mention');
 
-  const handleNotificationClick = (notification: any) => {
+  const handleNotificationClick = (notification: Notification) => {
     if (!notification.is_read) {
       markAsRead(notification.id);
     }

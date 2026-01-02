@@ -4,6 +4,13 @@ import { UserMentionDropdown } from '@/components/UserMentionDropdown';
 import { useUserMentions } from '@/hooks/useUserMentions';
 import { supabase } from '@/integrations/supabase/client';
 
+interface MentionUser {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  initials: string;
+}
+
 interface TextareaWithMentionsProps {
   value: string;
   onChange: (value: string) => void;
@@ -160,7 +167,7 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
     onKeyDown?.(e);
   }, [mentionState, closeMentions, handleUserSelect, displayValue, onChange, onKeyDown, selectedMentionIndex]);
 
-  const handleUserSelectFromDropdown = useCallback((user: any) => {
+  const handleUserSelectFromDropdown = useCallback((user: MentionUser) => {
     const result = handleUserSelect(user, displayValue, textareaRef.current?.selectionStart || 0);
 
     // Update display names cache

@@ -77,3 +77,23 @@ export interface TaskComment {
   created_at: string;
   updated_at: string;
 }
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  message_id: string | null;
+  content: string;
+  sender_name: string;
+  thread_id: string;
+  thread_type: string;
+  workspace_id: string | null;
+  is_read: boolean;
+  notification_type: string;
+  created_at: string;
+}
+
+export interface WorkspaceMember {
+  user_id: string;
+  workspace_id: string;
+  role?: string;
+}

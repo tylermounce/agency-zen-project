@@ -87,7 +87,7 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
         .select('user_id')
         .eq('workspace_id', workspaceId);
       if (membersError) throw membersError;
-      const memberIds = Array.from(new Set((members || []).map((m: any) => m.user_id)));
+      const memberIds = Array.from(new Set((members || []).map((m: { user_id: string }) => m.user_id)));
 
       // Check if conversation exists for this thread
       const { data: existingConv } = await supabase

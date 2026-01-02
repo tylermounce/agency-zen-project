@@ -14,6 +14,15 @@ import { TaskDetail } from '@/components/TaskDetail';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUnifiedData } from '@/hooks/useUnifiedData';
 import { formatters } from '@/lib/timezone';
+import { Task } from '@/types';
+
+interface ExtendedTask extends Task {
+  project: string;
+  workspace: string;
+  assignee: string;
+  dueDate: string;
+  notes: string;
+}
 
 export const MyTasks = () => {
   const { user } = useAuth();
@@ -41,7 +50,7 @@ export const MyTasks = () => {
   const [newTaskDueDate, setNewTaskDueDate] = useState(new Date().toISOString().split('T')[0]);
   const [newTaskNotes, setNewTaskNotes] = useState('');
   const [isPersonalTask, setIsPersonalTask] = useState(true);
-  const [selectedTask, setSelectedTask] = useState(null);
+  const [selectedTask, setSelectedTask] = useState<ExtendedTask | null>(null);
   const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
   
   // Collapsible sections state
@@ -70,7 +79,7 @@ export const MyTasks = () => {
   });
 
   // Get workspace projects mapping
-  const workspaceProjects = workspaces.reduce((acc, workspace) => {
+  const workspaceProjects = workspaces.reduce<Record<string, string[]>>((acc, workspace) => {
     const workspaceProjectList = projects.filter(p => p.workspace_id === workspace.id);
     acc[workspace.name] = workspaceProjectList.map(p => p.title);
     return acc;
@@ -187,24 +196,24 @@ export const MyTasks = () => {
     }
   };
 
-  const handleTaskClick = (task) => {
+  const handleTaskClick = (task: ExtendedTask) => {
     setSelectedTask(task);
     setIsTaskDetailOpen(true);
   };
 
-  const handleTaskSave = async (updates: Partial<any>) => {
+  const handleTaskSave = async (updates: Partial<Task>) => {
     try {
       if (!selectedTask) return;
-      const payload: any = {};
+      const payload: Partial<Task> = {};
       if (updates.title !== undefined) payload.title = updates.title;
       if (updates.description !== undefined) payload.description = updates.description;
       if (updates.status !== undefined) payload.status = updates.status;
       if (updates.priority !== undefined) payload.priority = updates.priority;
-      if ((updates as any).due_date !== undefined) payload.due_date = (updates as any).due_date;
+      if (updates.due_date !== undefined) payload.due_date = updates.due_date;
       if (updates.completed !== undefined) payload.completed = updates.completed;
-      if ((updates as any).assignee_id !== undefined) payload.assignee_id = (updates as any).assignee_id;
+      if (updates.assignee_id !== undefined) payload.assignee_id = updates.assignee_id;
 
-      await updateTask((selectedTask as any).id, payload);
+      await updateTask(selectedTask.id, payload);
     } catch (error) {
       console.error('Error updating task:', error);
     }
