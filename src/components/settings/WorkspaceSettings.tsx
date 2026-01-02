@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatters } from '@/lib/timezone';
 
 export const WorkspaceSettings = () => {
-  const { workspaces, createWorkspace, updateWorkspace, deleteWorkspace, getWorkspaceTaskCounts, users } = useUnifiedData();
+  const { workspaces, createWorkspace, updateWorkspace, deleteWorkspace, getWorkspaceTaskCounts, getWorkspaceProjects, users } = useUnifiedData();
   const { addWorkspaceMember, removeWorkspaceMember, getWorkspaceMembers } = useWorkspaceMembers();
   const { toast } = useToast();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -293,18 +293,33 @@ export const WorkspaceSettings = () => {
                               <AlertDialogContent>
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Delete Workspace</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete "{workspace.name}"? This action cannot be undone 
-                                    and will remove all associated projects and tasks.
+                                  <AlertDialogDescription asChild>
+                                    <div className="space-y-3">
+                                      <p>Are you sure you want to delete "{workspace.name}"?</p>
+                                      {(counts.total > 0 || getWorkspaceProjects(workspace.id).length > 0) && (
+                                        <div className="bg-red-50 border border-red-200 rounded-md p-3 text-red-800">
+                                          <p className="font-medium">This will permanently delete:</p>
+                                          <ul className="list-disc list-inside mt-1 text-sm">
+                                            {getWorkspaceProjects(workspace.id).length > 0 && (
+                                              <li>{getWorkspaceProjects(workspace.id).length} project(s)</li>
+                                            )}
+                                            {counts.total > 0 && (
+                                              <li>{counts.total} task(s)</li>
+                                            )}
+                                          </ul>
+                                        </div>
+                                      )}
+                                      <p className="text-sm text-gray-500">This action cannot be undone.</p>
+                                    </div>
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction 
+                                  <AlertDialogAction
                                     onClick={() => handleDeleteWorkspace(workspace.id, workspace.name)}
                                     className="bg-red-600 hover:bg-red-700"
                                   >
-                                    Delete
+                                    Delete Workspace
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>

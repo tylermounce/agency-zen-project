@@ -17,6 +17,8 @@ import { useUnifiedData } from '@/hooks/useUnifiedData';
 import { useUsers } from '@/hooks/useUsers';
 import { Task } from '@/types';
 import { formatters } from '@/lib/timezone';
+import { validateTask } from '@/lib/validation';
+import { toast } from '@/hooks/use-toast';
 
 interface TaskListProps {
   workspaceId: string;
@@ -44,6 +46,7 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
   const [newTaskDueDate, setNewTaskDueDate] = useState(new Date().toISOString().split('T')[0]);
   const [newTaskPriority, setNewTaskPriority] = useState('medium');
   const [newTaskStatus, setNewTaskStatus] = useState('todo');
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   
   // Collapsible sections state
   const [overdueOpen, setOverdueOpen] = useState(true);
@@ -90,15 +93,33 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
   };
 
   const handleCreateTask = async () => {
-    if (!newTaskTitle.trim() || !newTaskAssignee) return;
-    
+    // Validate form
+    const validation = validateTask({
+      title: newTaskTitle,
+      assignee_id: newTaskAssignee,
+      due_date: newTaskDueDate,
+      description: newTaskDescription
+    });
+
+    if (!validation.isValid) {
+      setFormErrors(validation.errors);
+      toast({
+        title: "Please fix the errors",
+        description: Object.values(validation.errors)[0],
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setFormErrors({});
+
     // Allow tasks without project (workspace tasks)
     const projectId = newTaskProject === "none" ? null : newTaskProject;
 
     try {
       await createTask({
-        title: newTaskTitle,
-        description: newTaskDescription,
+        title: newTaskTitle.trim(),
+        description: newTaskDescription.trim(),
         project_id: projectId,
         workspace_id: workspaceId,
         assignee_id: newTaskAssignee,
@@ -107,7 +128,7 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
         status: newTaskStatus as 'todo' | 'in-progress' | 'review' | 'done',
         completed: false
       });
-      
+
       // Reset form
       setNewTaskDialog(false);
       setNewTaskTitle('');
@@ -118,7 +139,11 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
       setNewTaskPriority('medium');
       setNewTaskStatus('todo');
     } catch (error) {
-      // Error creating task - could add user notification here
+      toast({
+        title: "Failed to create task",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive"
+      });
     }
   };
 
@@ -326,13 +351,20 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="task-title">Task Title</Label>
+                    <Label htmlFor="task-title">Task Title *</Label>
                     <Input
                       id="task-title"
                       value={newTaskTitle}
-                      onChange={(e) => setNewTaskTitle(e.target.value)}
+                      onChange={(e) => {
+                        setNewTaskTitle(e.target.value);
+                        if (formErrors.title) setFormErrors(prev => ({ ...prev, title: '' }));
+                      }}
                       placeholder="Enter task title..."
+                      className={formErrors.title ? 'border-red-500' : ''}
                     />
+                    {formErrors.title && (
+                      <p className="text-sm text-red-500 mt-1">{formErrors.title}</p>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="task-description">Notes</Label>
@@ -362,9 +394,15 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
                       </Select>
                     </div>
                     <div>
-                      <Label htmlFor="task-assignee">Assignee</Label>
-                      <Select value={newTaskAssignee} onValueChange={setNewTaskAssignee}>
-                        <SelectTrigger>
+                      <Label htmlFor="task-assignee">Assignee *</Label>
+                      <Select
+                        value={newTaskAssignee}
+                        onValueChange={(val) => {
+                          setNewTaskAssignee(val);
+                          if (formErrors.assignee_id) setFormErrors(prev => ({ ...prev, assignee_id: '' }));
+                        }}
+                      >
+                        <SelectTrigger className={formErrors.assignee_id ? 'border-red-500' : ''}>
                           <SelectValue placeholder="Select assignee" />
                         </SelectTrigger>
                         <SelectContent>
@@ -375,17 +413,27 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
                           ))}
                         </SelectContent>
                       </Select>
+                      {formErrors.assignee_id && (
+                        <p className="text-sm text-red-500 mt-1">{formErrors.assignee_id}</p>
+                      )}
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <Label htmlFor="task-due-date">Due Date</Label>
+                      <Label htmlFor="task-due-date">Due Date *</Label>
                       <Input
                         id="task-due-date"
                         type="date"
                         value={newTaskDueDate}
-                        onChange={(e) => setNewTaskDueDate(e.target.value)}
+                        onChange={(e) => {
+                          setNewTaskDueDate(e.target.value);
+                          if (formErrors.due_date) setFormErrors(prev => ({ ...prev, due_date: '' }));
+                        }}
+                        className={formErrors.due_date ? 'border-red-500' : ''}
                       />
+                      {formErrors.due_date && (
+                        <p className="text-sm text-red-500 mt-1">{formErrors.due_date}</p>
+                      )}
                     </div>
                     <div>
                       <Label htmlFor="task-priority">Priority</Label>
@@ -416,10 +464,13 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
                     </div>
                   </div>
                   <div className="flex justify-end space-x-2">
-                    <Button variant="outline" onClick={() => setNewTaskDialog(false)}>
+                    <Button variant="outline" onClick={() => {
+                      setNewTaskDialog(false);
+                      setFormErrors({});
+                    }}>
                       Cancel
                     </Button>
-                    <Button onClick={handleCreateTask} disabled={!newTaskTitle.trim() || !newTaskAssignee}>
+                    <Button onClick={handleCreateTask}>
                       Create Task
                     </Button>
                   </div>

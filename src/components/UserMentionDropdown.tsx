@@ -14,6 +14,7 @@ interface UserMentionDropdownProps {
   onUserSelect: (user: User) => void;
   position: { top: number; left: number };
   containerRef?: React.RefObject<HTMLDivElement>;
+  selectedIndex?: number;
 }
 
 export const UserMentionDropdown: React.FC<UserMentionDropdownProps> = ({
@@ -21,7 +22,8 @@ export const UserMentionDropdown: React.FC<UserMentionDropdownProps> = ({
   isVisible,
   onUserSelect,
   position,
-  containerRef
+  containerRef,
+  selectedIndex = 0
 }) => {
   if (!isVisible || users.length === 0) return null;
 
@@ -35,13 +37,15 @@ export const UserMentionDropdown: React.FC<UserMentionDropdownProps> = ({
       }}
     >
       <div className="p-2">
-        <div className="text-xs text-muted-foreground mb-2 px-2">Mention someone</div>
+        <div className="text-xs text-muted-foreground mb-2 px-2">Mention someone (↑↓ to navigate, Enter to select)</div>
         <div className="space-y-1">
-          {users.map((user) => (
+          {users.map((user, index) => (
             <div
               key={user.id}
               onClick={() => onUserSelect(user)}
-              className="flex items-center space-x-3 p-2 rounded-md hover:bg-accent cursor-pointer transition-colors"
+              className={`flex items-center space-x-3 p-2 rounded-md cursor-pointer transition-colors ${
+                index === selectedIndex ? 'bg-accent' : 'hover:bg-accent'
+              }`}
             >
               <Avatar className="w-6 h-6">
                 <AvatarFallback className="text-xs">
