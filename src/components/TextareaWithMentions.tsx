@@ -28,7 +28,13 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const [userDisplayNames, setUserDisplayNames] = useState<{[userId: string]: string}>({});
   const [displayValue, setDisplayValue] = useState(value);
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const { mentionState, handleTextChange, handleUserSelect, closeMentions } = useUserMentions(workspaceId);
+
+  // Reset selection when suggestions change
+  useEffect(() => {
+    setSelectedMentionIndex(0);
+  }, [mentionState.suggestions]);
 
   // Convert stored format to display format for showing in textarea
   const getDisplayValue = useCallback(async (text: string) => {
@@ -101,32 +107,44 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
   }, [onChange, handleTextChange, convertDisplayToStorage]);
 
   const handleKeyDownInternal = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (mentionState.isActive) {
+    if (mentionState.isActive && mentionState.suggestions.length > 0) {
       if (e.key === 'Escape') {
         e.preventDefault();
         closeMentions();
         return;
       }
-      
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+
+      if (e.key === 'ArrowDown') {
         e.preventDefault();
-        // Handle arrow navigation in dropdown if needed
+        setSelectedMentionIndex(prev =>
+          prev < mentionState.suggestions.length - 1 ? prev + 1 : 0
+        );
         return;
       }
-      
-      if (e.key === 'Enter' && mentionState.suggestions.length > 0) {
+
+      if (e.key === 'ArrowUp') {
         e.preventDefault();
-        const firstSuggestion = mentionState.suggestions[0];
-        const result = handleUserSelect(firstSuggestion, displayValue, textareaRef.current?.selectionStart || 0);
-        
+        setSelectedMentionIndex(prev =>
+          prev > 0 ? prev - 1 : mentionState.suggestions.length - 1
+        );
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const selectedUser = mentionState.suggestions[selectedMentionIndex];
+        if (!selectedUser) return;
+
+        const result = handleUserSelect(selectedUser, displayValue, textareaRef.current?.selectionStart || 0);
+
         // Update display names cache
-        setUserDisplayNames(prev => ({ ...prev, [firstSuggestion.id]: firstSuggestion.full_name || 'Unknown User' }));
-        
+        setUserDisplayNames(prev => ({ ...prev, [selectedUser.id]: selectedUser.full_name || 'Unknown User' }));
+
         // Update both display and storage values
-        const newDisplayValue = result.text.replace(`@{userId:${firstSuggestion.id}}`, `@${firstSuggestion.full_name || 'Unknown User'}`);
+        const newDisplayValue = result.text.replace(`@{userId:${selectedUser.id}}`, `@${selectedUser.full_name || 'Unknown User'}`);
         setDisplayValue(newDisplayValue);
         onChange(result.text); // Store the storage format
-        
+
         // Set cursor position after state update
         setTimeout(() => {
           if (textareaRef.current) {
@@ -137,10 +155,10 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
         return;
       }
     }
-    
+
     // Call parent onKeyDown if provided
     onKeyDown?.(e);
-  }, [mentionState, closeMentions, handleUserSelect, value, onChange, onKeyDown]);
+  }, [mentionState, closeMentions, handleUserSelect, displayValue, onChange, onKeyDown, selectedMentionIndex]);
 
   const handleUserSelectFromDropdown = useCallback((user: any) => {
     const result = handleUserSelect(user, displayValue, textareaRef.current?.selectionStart || 0);
@@ -215,6 +233,7 @@ export const TextareaWithMentions: React.FC<TextareaWithMentionsProps> = ({
         onUserSelect={handleUserSelectFromDropdown}
         position={dropdownPosition}
         containerRef={dropdownRef}
+        selectedIndex={selectedMentionIndex}
       />
     </div>
   );
