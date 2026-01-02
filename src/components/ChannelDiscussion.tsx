@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, MessageSquare, Reply, Hash, Search, MoreHorizontal, Edit2, Trash2 } from 'lucide-react';
+import { Send, MessageSquare, Reply, Hash, Search, MoreHorizontal, Edit2, Trash2, Loader2 } from 'lucide-react';
 import { TextareaWithMentions } from '@/components/TextareaWithMentions';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,39 +35,28 @@ interface Profile {
 
 export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
   const { user } = useAuth();
-  const { sendMessage } = useMessaging();
+  const { sendMessage, messages: allMessages, fetchMessages: fetchMessagesFromHook, loadMoreMessages, threadPagination } = useMessaging();
   const [newPost, setNewPost] = useState('');
   const [replyTargetId, setReplyTargetId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [messages, setMessages] = useState<Message[]>([]);
   const [profiles, setProfiles] = useState<{ [key: string]: Profile }>({});
   const [loading, setLoading] = useState(true);
   const [editingMessage, setEditingMessage] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
 
   const threadId = `workspace-${workspaceId}-general`;
+  const messages = allMessages[threadId] || [];
+  const pagination = threadPagination[threadId];
 
   useEffect(() => {
-    fetchMessages();
+    fetchMessagesFromHook(threadId);
     fetchProfiles();
-  }, [workspaceId]);
+    setLoading(false);
+  }, [workspaceId, threadId, fetchMessagesFromHook]);
 
-  const fetchMessages = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('thread_id', threadId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setMessages(data || []);
-    } catch (error) {
-      // Error loading messages - could add user notification here
-    } finally {
-      setLoading(false);
-    }
+  const fetchMessages = () => {
+    fetchMessagesFromHook(threadId);
   };
 
   const fetchProfiles = async () => {
@@ -98,7 +87,7 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
         .select('user_id')
         .eq('workspace_id', workspaceId);
       if (membersError) throw membersError;
-      const memberIds = Array.from(new Set((members || []).map((m: any) => m.user_id)));
+      const memberIds = Array.from(new Set((members || []).map((m: { user_id: string }) => m.user_id)));
 
       // Check if conversation exists for this thread
       const { data: existingConv } = await supabase
@@ -280,6 +269,27 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
 
       {/* Messages Feed */}
       <div className="space-y-4">
+        {/* Load More Button */}
+        {pagination?.hasMore && !searchTerm && filteredMessages.length > 0 && (
+          <div className="text-center">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => loadMoreMessages(threadId)}
+              disabled={pagination?.loading}
+            >
+              {pagination?.loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                'Load older messages'
+              )}
+            </Button>
+          </div>
+        )}
+
         {filteredMessages.length === 0 && !searchTerm ? (
           <div className="text-center py-8 text-gray-500">
             <p>No messages yet. Start the conversation!</p>

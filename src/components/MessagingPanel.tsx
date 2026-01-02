@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Search, Plus, MessageSquare } from 'lucide-react';
+import { Send, Search, Plus, MessageSquare, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -29,7 +29,7 @@ interface MessagingPanelProps {
 export const MessagingPanel = ({ workspaceId, selectedProjectThread }: MessagingPanelProps) => {
   const { user } = useAuth();
   const { users } = useUsers();
-  const { conversations, messages, sendMessage, createConversation, fetchMessages, getProjectThreadId } = useMessaging();
+  const { conversations, messages, sendMessage, createConversation, fetchMessages, getProjectThreadId, loadMoreMessages, threadPagination } = useMessaging();
   
   const { hasUnreadInThread, markThreadAsRead, getUnreadCountForThread } = useNotifications();
   const { getWorkspace, mapWorkspaceIdToName, getWorkspaceProjects } = useUnifiedData();
@@ -128,6 +128,7 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
 
   const currentConversation = conversations.find(c => c.thread_id === selectedConversation);
   const currentMessages = selectedConversation ? messages[selectedConversation] || [] : [];
+  const currentPagination = selectedConversation ? threadPagination[selectedConversation] : undefined;
   const workspaceProjects = getWorkspaceProjects(workspaceId);
 
   return (
@@ -280,6 +281,26 @@ export const MessagingPanel = ({ workspaceId, selectedProjectThread }: Messaging
             <CardContent className="space-y-4">
               <ScrollArea className="h-[300px] pr-4">
                 <div className="space-y-4">
+                  {/* Load More Button */}
+                  {currentPagination?.hasMore && currentMessages.length > 0 && (
+                    <div className="text-center pb-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => loadMoreMessages(selectedConversation)}
+                        disabled={currentPagination?.loading}
+                      >
+                        {currentPagination?.loading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Loading...
+                          </>
+                        ) : (
+                          'Load older messages'
+                        )}
+                      </Button>
+                    </div>
+                  )}
                   {currentMessages.length === 0 ? (
                     <div className="text-center text-gray-500 py-8">
                       <p>No messages yet</p>

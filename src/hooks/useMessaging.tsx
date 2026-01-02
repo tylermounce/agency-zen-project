@@ -1,9 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMentionUtils } from '@/hooks/useMentionUtils';
 import { useNotificationCreation } from '@/hooks/useNotificationCreation';
 import { RealtimeChannel } from '@supabase/supabase-js';
+
+const MESSAGE_PAGE_SIZE = 50;
+
+interface ThreadPaginationState {
+  hasMore: boolean;
+  loading: boolean;
+  oldestMessageDate: string | null;
+}
 
 interface Message {
   id: string;
@@ -34,7 +42,8 @@ export const useMessaging = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<{ [threadId: string]: Message[] }>({});
   const [loading, setLoading] = useState(false);
-  
+  const [threadPagination, setThreadPagination] = useState<{ [threadId: string]: ThreadPaginationState }>({});
+
   const channelId = useRef(`${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
   const conversationsChannelRef = useRef<RealtimeChannel | null>(null);
   const messagesChannelRef = useRef<RealtimeChannel | null>(null);
@@ -61,26 +70,113 @@ export const useMessaging = () => {
     }
   };
 
-  const fetchMessages = async (threadId: string) => {
+  const fetchMessages = useCallback(async (threadId: string, reset: boolean = true) => {
     if (!user) return;
+
+    // Set loading state for this thread
+    setThreadPagination(prev => ({
+      ...prev,
+      [threadId]: {
+        ...prev[threadId],
+        loading: true
+      }
+    }));
+
+    try {
+      // Fetch the most recent messages first (descending), then reverse for display
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('thread_id', threadId)
+        .order('created_at', { ascending: false })
+        .limit(MESSAGE_PAGE_SIZE);
+
+      if (error) throw error;
+
+      const messagesData = (data || []).reverse(); // Reverse to show oldest first
+      const hasMore = data?.length === MESSAGE_PAGE_SIZE;
+      const oldestMessage = data && data.length > 0 ? data[data.length - 1] : null;
+
+      setMessages(prev => ({
+        ...prev,
+        [threadId]: messagesData
+      }));
+
+      setThreadPagination(prev => ({
+        ...prev,
+        [threadId]: {
+          hasMore,
+          loading: false,
+          oldestMessageDate: oldestMessage?.created_at || null
+        }
+      }));
+    } catch (err) {
+      console.error('Error fetching messages:', err);
+      setThreadPagination(prev => ({
+        ...prev,
+        [threadId]: {
+          ...prev[threadId],
+          loading: false
+        }
+      }));
+    }
+  }, [user]);
+
+  const loadMoreMessages = useCallback(async (threadId: string) => {
+    if (!user) return;
+
+    const paginationState = threadPagination[threadId];
+    if (!paginationState?.hasMore || paginationState?.loading || !paginationState?.oldestMessageDate) {
+      return;
+    }
+
+    setThreadPagination(prev => ({
+      ...prev,
+      [threadId]: {
+        ...prev[threadId],
+        loading: true
+      }
+    }));
 
     try {
       const { data, error } = await supabase
         .from('messages')
         .select('*')
         .eq('thread_id', threadId)
-        .order('created_at', { ascending: true });
+        .lt('created_at', paginationState.oldestMessageDate)
+        .order('created_at', { ascending: false })
+        .limit(MESSAGE_PAGE_SIZE);
 
       if (error) throw error;
-      
+
+      const olderMessages = (data || []).reverse();
+      const hasMore = data?.length === MESSAGE_PAGE_SIZE;
+      const oldestMessage = data && data.length > 0 ? data[data.length - 1] : null;
+
       setMessages(prev => ({
         ...prev,
-        [threadId]: data || []
+        [threadId]: [...olderMessages, ...(prev[threadId] || [])]
+      }));
+
+      setThreadPagination(prev => ({
+        ...prev,
+        [threadId]: {
+          hasMore,
+          loading: false,
+          oldestMessageDate: oldestMessage?.created_at || paginationState.oldestMessageDate
+        }
       }));
     } catch (err) {
-      console.error('Error fetching messages:', err);
+      console.error('Error loading more messages:', err);
+      setThreadPagination(prev => ({
+        ...prev,
+        [threadId]: {
+          ...prev[threadId],
+          loading: false
+        }
+      }));
     }
-  };
+  }, [user, threadPagination]);
 
   const sendMessage = async (content: string, threadType: string, threadId: string, workspaceId?: string) => {
     if (!user || !content.trim()) return;
@@ -317,7 +413,9 @@ export const useMessaging = () => {
     conversations,
     messages,
     loading,
+    threadPagination,
     fetchMessages,
+    loadMoreMessages,
     sendMessage,
     createConversation,
     fetchConversations,

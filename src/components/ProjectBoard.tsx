@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { useUnifiedData } from '@/hooks/useUnifiedData';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatters } from '@/lib/timezone';
+import { Project } from '@/types';
 
 interface ProjectBoardProps {
   workspaceId: string;
@@ -34,8 +35,8 @@ export const ProjectBoard = ({ workspaceId, onProjectClick, onProjectMessageClic
   
   const workspaceProjects = getWorkspaceProjects(workspaceId);
   
-  // Calculate task counts for each project  
-  const ProjectCard = ({ project }: { project: any }) => {
+  // Calculate task counts for each project
+  const ProjectCard = ({ project }: { project: Project }) => {
     const { members } = useProjectMembers(project.id);
     const projectTasks = getProjectTasks(project.id);
     const completedTasks = projectTasks.filter(task => task.completed).length;
