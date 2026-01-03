@@ -259,9 +259,43 @@ export const useSupabaseData = () => {
     }
   };
 
-  // Delete workspace
+  // Delete workspace (cascade delete all related data)
   const deleteWorkspace = async (workspaceId: string) => {
     try {
+      // 1. Delete all tasks in this workspace
+      const { error: tasksError } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('workspace_id', workspaceId);
+
+      if (tasksError) {
+        console.error('Error deleting workspace tasks:', tasksError);
+        // Continue anyway - tasks might not exist
+      }
+
+      // 2. Delete all projects in this workspace
+      const { error: projectsError } = await supabase
+        .from('projects')
+        .delete()
+        .eq('workspace_id', workspaceId);
+
+      if (projectsError) {
+        console.error('Error deleting workspace projects:', projectsError);
+        throw projectsError;
+      }
+
+      // 3. Delete workspace members
+      const { error: membersError } = await supabase
+        .from('workspace_members')
+        .delete()
+        .eq('workspace_id', workspaceId);
+
+      if (membersError) {
+        console.error('Error deleting workspace members:', membersError);
+        // Continue anyway - members might not exist
+      }
+
+      // 4. Finally delete the workspace itself
       const { error } = await supabase
         .from('workspaces')
         .delete()
@@ -270,14 +304,52 @@ export const useSupabaseData = () => {
       if (error) throw error;
 
       setWorkspaces(prev => prev.filter(workspace => workspace.id !== workspaceId));
+      setProjects(prev => prev.filter(project => project.workspace_id !== workspaceId));
+      setTasks(prev => prev.filter(task => task.workspace_id !== workspaceId));
+
       toast({
         title: "Workspace deleted",
-        description: "The workspace has been removed.",
+        description: "The workspace and all its data have been removed.",
       });
     } catch (err) {
       console.error('Error deleting workspace:', err);
       toast({
         title: "Failed to delete workspace",
+        description: err instanceof Error ? err.message : 'An error occurred',
+        variant: "destructive",
+      });
+      throw err;
+    }
+  };
+
+  // Archive/unarchive workspace (hide without deleting)
+  const archiveWorkspace = async (workspaceId: string, archived: boolean) => {
+    try {
+      const { data, error } = await supabase
+        .from('workspaces')
+        .update({ is_archived: archived })
+        .eq('id', workspaceId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setWorkspaces(prev => prev.map(workspace =>
+        workspace.id === workspaceId ? { ...workspace, is_archived: archived } : workspace
+      ));
+
+      toast({
+        title: archived ? "Workspace archived" : "Workspace restored",
+        description: archived
+          ? "The workspace is now hidden from the sidebar."
+          : "The workspace is now visible in the sidebar.",
+      });
+
+      return data;
+    } catch (err) {
+      console.error('Error archiving workspace:', err);
+      toast({
+        title: "Failed to update workspace",
         description: err instanceof Error ? err.message : 'An error occurred',
         variant: "destructive",
       });
@@ -409,6 +481,7 @@ export const useSupabaseData = () => {
     updateProject,
     updateWorkspace,
     deleteWorkspace,
+    archiveWorkspace,
     refetch: fetchData
   };
 };

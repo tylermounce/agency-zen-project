@@ -10,14 +10,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, MoreHorizontal, Building, Edit, Trash2, Users, X } from 'lucide-react';
+import { Plus, MoreHorizontal, Building, Edit, Trash2, Users, X, Archive, ArchiveRestore } from 'lucide-react';
 import { useUnifiedData } from '@/hooks/useUnifiedData';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useToast } from '@/hooks/use-toast';
 import { formatters } from '@/lib/timezone';
 
 export const WorkspaceSettings = () => {
-  const { workspaces, createWorkspace, updateWorkspace, deleteWorkspace, getWorkspaceTaskCounts, getWorkspaceProjects, users } = useUnifiedData();
+  const { workspaces, createWorkspace, updateWorkspace, deleteWorkspace, archiveWorkspace, getWorkspaceTaskCounts, getWorkspaceProjects, users } = useUnifiedData();
   const { addWorkspaceMember, removeWorkspaceMember, getWorkspaceMembers } = useWorkspaceMembers();
   const { toast } = useToast();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -112,7 +113,7 @@ export const WorkspaceSettings = () => {
   const handleDeleteWorkspace = async (workspaceId: string, workspaceName: string) => {
     try {
       await deleteWorkspace(workspaceId);
-      
+
       toast({
         title: "Workspace deleted",
         description: `${workspaceName} has been deleted successfully.`,
@@ -126,6 +127,18 @@ export const WorkspaceSettings = () => {
       });
     }
   };
+
+  const handleArchiveWorkspace = async (workspaceId: string, archived: boolean) => {
+    try {
+      await archiveWorkspace(workspaceId, archived);
+    } catch (error) {
+      console.error('Error archiving workspace:', error);
+    }
+  };
+
+  // Separate active and archived workspaces
+  const activeWorkspaces = workspaces.filter(w => !(w as any).is_archived);
+  const archivedWorkspaces = workspaces.filter(w => (w as any).is_archived);
 
   const handleAddMember = async (workspaceId: string, userId: string) => {
     try {
@@ -225,113 +238,237 @@ export const WorkspaceSettings = () => {
               Manage workspaces for your organization. Each workspace can contain multiple projects and tasks.
             </p>
 
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Workspace</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Tasks</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="w-16">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {workspaces.map((workspace) => {
-                  const counts = taskCounts[workspace.id] || { total: 0, active: 0, completed: 0 };
-                  return (
-                    <TableRow key={workspace.id}>
-                      <TableCell>
-                        <div className="flex items-center space-x-3">
-                          <div 
-                            className="w-4 h-4 rounded-full"
-                            style={{ backgroundColor: workspace.color }}
-                          ></div>
-                          <div>
-                            <div className="font-medium">{workspace.name}</div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-600 max-w-xs truncate">
-                        {workspace.description || 'No description'}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex space-x-1">
-                          <Badge variant="outline" className="text-xs">
-                            {counts.active} active
-                          </Badge>
-                          <Badge variant="secondary" className="text-xs">
-                            {counts.total} total
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-500">
-                        {(workspace as any).created_at ? formatters.dateOnly((workspace as any).created_at) : 'Unknown'}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEditWorkspace(workspace)}>
-                              <Edit className="w-4 h-4 mr-2" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setManagingMembers(workspace)}>
-                              <Users className="w-4 h-4 mr-2" />
-                              Manage Members
-                            </DropdownMenuItem>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                  <Trash2 className="w-4 h-4 mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Workspace</AlertDialogTitle>
-                                  <AlertDialogDescription asChild>
-                                    <div className="space-y-3">
-                                      <p>Are you sure you want to delete "{workspace.name}"?</p>
-                                      {(counts.total > 0 || getWorkspaceProjects(workspace.id).length > 0) && (
-                                        <div className="bg-red-50 border border-red-200 rounded-md p-3 text-red-800">
-                                          <p className="font-medium">This will permanently delete:</p>
-                                          <ul className="list-disc list-inside mt-1 text-sm">
-                                            {getWorkspaceProjects(workspace.id).length > 0 && (
-                                              <li>{getWorkspaceProjects(workspace.id).length} project(s)</li>
+            <Tabs defaultValue="active" className="w-full">
+              <TabsList>
+                <TabsTrigger value="active">Active ({activeWorkspaces.length})</TabsTrigger>
+                <TabsTrigger value="archived">Archived ({archivedWorkspaces.length})</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="active">
+                {activeWorkspaces.length === 0 ? (
+                  <p className="text-center text-gray-500 py-8">No active workspaces. Create one to get started.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Workspace</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Tasks</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead className="w-16">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {activeWorkspaces.map((workspace) => {
+                        const counts = taskCounts[workspace.id] || { total: 0, active: 0, completed: 0 };
+                        return (
+                          <TableRow key={workspace.id}>
+                            <TableCell>
+                              <div className="flex items-center space-x-3">
+                                <div
+                                  className="w-4 h-4 rounded-full"
+                                  style={{ backgroundColor: workspace.color }}
+                                ></div>
+                                <div>
+                                  <div className="font-medium">{workspace.name}</div>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm text-gray-600 max-w-xs truncate">
+                              {workspace.description || 'No description'}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex space-x-1">
+                                <Badge variant="outline" className="text-xs">
+                                  {counts.active} active
+                                </Badge>
+                                <Badge variant="secondary" className="text-xs">
+                                  {counts.total} total
+                                </Badge>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm text-gray-500">
+                              {(workspace as any).created_at ? formatters.dateOnly((workspace as any).created_at) : 'Unknown'}
+                            </TableCell>
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm">
+                                    <MoreHorizontal className="w-4 h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleEditWorkspace(workspace)}>
+                                    <Edit className="w-4 h-4 mr-2" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => setManagingMembers(workspace)}>
+                                    <Users className="w-4 h-4 mr-2" />
+                                    Manage Members
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleArchiveWorkspace(workspace.id, true)}>
+                                    <Archive className="w-4 h-4 mr-2" />
+                                    Archive
+                                  </DropdownMenuItem>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
+                                        <Trash2 className="w-4 h-4 mr-2" />
+                                        Delete
+                                      </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete Workspace</AlertDialogTitle>
+                                        <AlertDialogDescription asChild>
+                                          <div className="space-y-3">
+                                            <p>Are you sure you want to delete "{workspace.name}"?</p>
+                                            {(counts.total > 0 || getWorkspaceProjects(workspace.id).length > 0) && (
+                                              <div className="bg-red-50 border border-red-200 rounded-md p-3 text-red-800">
+                                                <p className="font-medium">This will permanently delete:</p>
+                                                <ul className="list-disc list-inside mt-1 text-sm">
+                                                  {getWorkspaceProjects(workspace.id).length > 0 && (
+                                                    <li>{getWorkspaceProjects(workspace.id).length} project(s)</li>
+                                                  )}
+                                                  {counts.total > 0 && (
+                                                    <li>{counts.total} task(s)</li>
+                                                  )}
+                                                </ul>
+                                              </div>
                                             )}
-                                            {counts.total > 0 && (
-                                              <li>{counts.total} task(s)</li>
+                                            <p className="text-sm text-gray-500">This action cannot be undone. Consider archiving instead.</p>
+                                          </div>
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => handleDeleteWorkspace(workspace.id, workspace.name)}
+                                          className="bg-red-600 hover:bg-red-700"
+                                        >
+                                          Delete Workspace
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </TabsContent>
+
+              <TabsContent value="archived">
+                {archivedWorkspaces.length === 0 ? (
+                  <p className="text-center text-gray-500 py-8">No archived workspaces.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Workspace</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Tasks</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead className="w-16">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {archivedWorkspaces.map((workspace) => {
+                        const counts = taskCounts[workspace.id] || { total: 0, active: 0, completed: 0 };
+                        return (
+                          <TableRow key={workspace.id} className="opacity-75">
+                            <TableCell>
+                              <div className="flex items-center space-x-3">
+                                <div
+                                  className="w-4 h-4 rounded-full"
+                                  style={{ backgroundColor: workspace.color }}
+                                ></div>
+                                <div>
+                                  <div className="font-medium">{workspace.name}</div>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm text-gray-600 max-w-xs truncate">
+                              {workspace.description || 'No description'}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex space-x-1">
+                                <Badge variant="secondary" className="text-xs">
+                                  {counts.total} tasks
+                                </Badge>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm text-gray-500">
+                              {(workspace as any).created_at ? formatters.dateOnly((workspace as any).created_at) : 'Unknown'}
+                            </TableCell>
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm">
+                                    <MoreHorizontal className="w-4 h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleArchiveWorkspace(workspace.id, false)}>
+                                    <ArchiveRestore className="w-4 h-4 mr-2" />
+                                    Restore
+                                  </DropdownMenuItem>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
+                                        <Trash2 className="w-4 h-4 mr-2" />
+                                        Delete Permanently
+                                      </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete Workspace Permanently</AlertDialogTitle>
+                                        <AlertDialogDescription asChild>
+                                          <div className="space-y-3">
+                                            <p>Are you sure you want to permanently delete "{workspace.name}"?</p>
+                                            {(counts.total > 0 || getWorkspaceProjects(workspace.id).length > 0) && (
+                                              <div className="bg-red-50 border border-red-200 rounded-md p-3 text-red-800">
+                                                <p className="font-medium">This will permanently delete:</p>
+                                                <ul className="list-disc list-inside mt-1 text-sm">
+                                                  {getWorkspaceProjects(workspace.id).length > 0 && (
+                                                    <li>{getWorkspaceProjects(workspace.id).length} project(s)</li>
+                                                  )}
+                                                  {counts.total > 0 && (
+                                                    <li>{counts.total} task(s)</li>
+                                                  )}
+                                                </ul>
+                                              </div>
                                             )}
-                                          </ul>
-                                        </div>
-                                      )}
-                                      <p className="text-sm text-gray-500">This action cannot be undone.</p>
-                                    </div>
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDeleteWorkspace(workspace.id, workspace.name)}
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
-                                    Delete Workspace
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                                            <p className="text-sm text-gray-500">This action cannot be undone.</p>
+                                          </div>
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => handleDeleteWorkspace(workspace.id, workspace.name)}
+                                          className="bg-red-600 hover:bg-red-700"
+                                        >
+                                          Delete Permanently
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
         </CardContent>
       </Card>
