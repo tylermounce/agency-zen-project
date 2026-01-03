@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Copy, Star, X, Calendar, Play, AlertCircle } from 'lucide-react';
+import { Plus, Copy, Star, X, Calendar, Play, AlertCircle, Edit2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -66,8 +66,20 @@ export const ProjectTemplates = ({ workspaceId }: ProjectTemplatesProps) => {
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [missingAssignees, setMissingAssignees] = useState<string[]>([]);
   const [reassignments, setReassignments] = useState<Record<string, string>>({});
+  const [individualMode, setIndividualMode] = useState<Record<string, boolean>>({});
+  const [taskReassignments, setTaskReassignments] = useState<Record<string, string>>({});
   const [workspaceMemberIds, setWorkspaceMemberIds] = useState<string[]>([]);
   const [applyingTemplate, setApplyingTemplate] = useState(false);
+
+  // Edit Template dialog state
+  const [editTemplateDialog, setEditTemplateDialog] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+  const [editTemplateName, setEditTemplateName] = useState('');
+  const [editTemplateDescription, setEditTemplateDescription] = useState('');
+  const [editTemplateCategory, setEditTemplateCategory] = useState('');
+  const [editTemplateDuration, setEditTemplateDuration] = useState('');
+  const [editTemplateTasks, setEditTemplateTasks] = useState<TemplateTask[]>([]);
+  const [savingTemplate, setSavingTemplate] = useState(false);
 
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -147,10 +159,14 @@ export const ProjectTemplates = ({ workspaceId }: ProjectTemplatesProps) => {
 
       // Initialize reassignments for missing users
       const initialReassignments: Record<string, string> = {};
+      const initialIndividualMode: Record<string, boolean> = {};
       missing.forEach(userId => {
         initialReassignments[userId] = '';
+        initialIndividualMode[userId] = false;
       });
       setReassignments(initialReassignments);
+      setIndividualMode(initialIndividualMode);
+      setTaskReassignments({});
     } catch (error) {
       console.error('Error fetching workspace members:', error);
       setWorkspaceMemberIds([]);
@@ -158,6 +174,152 @@ export const ProjectTemplates = ({ workspaceId }: ProjectTemplatesProps) => {
     }
 
     setUseTemplateDialog(true);
+  };
+
+  // Handle bulk assignment selection - ask if user wants individual assignment
+  const handleBulkReassignment = (missingUserId: string, newAssigneeId: string) => {
+    const tasksForUser = selectedTemplate?.template_tasks?.filter(
+      t => t.default_assignee_id === missingUserId
+    ) || [];
+
+    if (tasksForUser.length > 1) {
+      // Multiple tasks - set the bulk assignment and ask about individual
+      setReassignments(prev => ({ ...prev, [missingUserId]: newAssigneeId }));
+    } else {
+      // Single task - just assign directly
+      setReassignments(prev => ({ ...prev, [missingUserId]: newAssigneeId }));
+    }
+  };
+
+  // Toggle individual assignment mode for a user
+  const toggleIndividualMode = (missingUserId: string) => {
+    setIndividualMode(prev => ({ ...prev, [missingUserId]: !prev[missingUserId] }));
+    // Clear bulk assignment when switching to individual
+    if (!individualMode[missingUserId]) {
+      setReassignments(prev => ({ ...prev, [missingUserId]: '' }));
+    }
+  };
+
+  // Get task key for individual reassignments
+  const getTaskKey = (missingUserId: string, taskIndex: number) => `${missingUserId}-${taskIndex}`;
+
+  // Check if all tasks for a missing user are assigned (either bulk or individual)
+  const isUserFullyAssigned = (missingUserId: string): boolean => {
+    if (individualMode[missingUserId]) {
+      // Check individual assignments
+      const tasksForUser = selectedTemplate?.template_tasks?.filter(
+        t => t.default_assignee_id === missingUserId
+      ) || [];
+      return tasksForUser.every((_, idx) => taskReassignments[getTaskKey(missingUserId, idx)]);
+    } else {
+      // Check bulk assignment
+      return !!reassignments[missingUserId];
+    }
+  };
+
+  // Open Edit Template dialog
+  const handleEditTemplate = (template: Template) => {
+    setEditingTemplate(template);
+    setEditTemplateName(template.name);
+    setEditTemplateDescription(template.description || '');
+    setEditTemplateCategory(template.category);
+    setEditTemplateDuration(template.duration || '');
+    setEditTemplateTasks(template.template_tasks?.map(t => ({ ...t })) || []);
+    setEditTemplateDialog(true);
+  };
+
+  // Save template edits
+  const handleSaveTemplate = async () => {
+    if (!editingTemplate || !editTemplateName.trim()) return;
+
+    setSavingTemplate(true);
+
+    try {
+      // Update template details
+      const { error: templateError } = await supabase
+        .from('project_templates')
+        .update({
+          name: editTemplateName,
+          description: editTemplateDescription,
+          category: editTemplateCategory,
+          duration: editTemplateDuration,
+          tasks_count: editTemplateTasks.length
+        })
+        .eq('id', editingTemplate.id);
+
+      if (templateError) throw templateError;
+
+      // Delete existing tasks and recreate (simpler than diffing)
+      const { error: deleteError } = await supabase
+        .from('template_tasks')
+        .delete()
+        .eq('template_id', editingTemplate.id);
+
+      if (deleteError) throw deleteError;
+
+      // Insert updated tasks
+      if (editTemplateTasks.length > 0) {
+        const taskInserts = editTemplateTasks.map((task, index) => ({
+          template_id: editingTemplate.id,
+          title: task.title,
+          description: task.description || '',
+          priority: task.priority,
+          order_index: index,
+          status: 'todo',
+          relative_due_days: task.relative_due_days || 0,
+          default_assignee_id: task.default_assignee_id || null
+        }));
+
+        const { error: insertError } = await supabase
+          .from('template_tasks')
+          .insert(taskInserts);
+
+        if (insertError) throw insertError;
+      }
+
+      toast({
+        title: "Template updated!",
+        description: `"${editTemplateName}" has been saved`
+      });
+
+      setEditTemplateDialog(false);
+      setEditingTemplate(null);
+
+      // Refresh templates list
+      const { data, error: fetchError } = await supabase
+        .from('project_templates')
+        .select('*, template_tasks(*)')
+        .order('created_at', { ascending: false });
+
+      if (!fetchError && data) {
+        setTemplates(data.map(t => ({
+          ...t,
+          tasks: t.template_tasks?.length || 0,
+          popular: t.is_popular
+        })));
+      }
+    } catch (error) {
+      console.error('Error updating template:', error);
+      toast({
+        title: "Error updating template",
+        description: "Please try again",
+        variant: "destructive"
+      });
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  // Update task assignee in edit mode
+  const updateEditTaskAssignee = (taskIndex: number, assigneeId: string) => {
+    setEditTemplateTasks(prev => prev.map((task, idx) =>
+      idx === taskIndex ? { ...task, default_assignee_id: assigneeId || null } : task
+    ));
+  };
+
+  // Remove task from edit mode
+  const removeEditTask = (taskIndex: number) => {
+    setEditTemplateTasks(prev => prev.filter((_, idx) => idx !== taskIndex));
   };
 
   // Get workspace members as user objects for the dropdown
@@ -170,7 +332,7 @@ export const ProjectTemplates = ({ workspaceId }: ProjectTemplatesProps) => {
     if (!selectedTemplate || !workspaceId || !user) return;
 
     // Check if all missing assignees have been reassigned
-    const unassignedMissing = missingAssignees.filter(id => !reassignments[id]);
+    const unassignedMissing = missingAssignees.filter(id => !isUserFullyAssigned(id));
     if (unassignedMissing.length > 0) {
       toast({
         title: "Please assign all team members",
@@ -185,6 +347,9 @@ export const ProjectTemplates = ({ workspaceId }: ProjectTemplatesProps) => {
     try {
       const tasks = selectedTemplate.template_tasks || [];
 
+      // Track task index per missing user for individual assignments
+      const taskCountByUser: Record<string, number> = {};
+
       for (const templateTask of tasks) {
         // Calculate due date based on start date + relative days
         const dueDate = new Date(startDate);
@@ -192,14 +357,25 @@ export const ProjectTemplates = ({ workspaceId }: ProjectTemplatesProps) => {
 
         // Determine assignee:
         // 1. If default assignee is in workspace, use them
-        // 2. If default assignee is NOT in workspace, use the reassignment
+        // 2. If default assignee is NOT in workspace, check individual or bulk reassignment
         // 3. If no assignee set, use current user
         let assigneeId = user.id;
         if (templateTask.default_assignee_id) {
           if (workspaceMemberIds.includes(templateTask.default_assignee_id)) {
             assigneeId = templateTask.default_assignee_id;
-          } else if (reassignments[templateTask.default_assignee_id]) {
-            assigneeId = reassignments[templateTask.default_assignee_id];
+          } else {
+            // User is not in workspace - check for reassignment
+            const missingUserId = templateTask.default_assignee_id;
+            if (individualMode[missingUserId]) {
+              // Individual mode - get task-specific reassignment
+              const taskIdx = taskCountByUser[missingUserId] || 0;
+              const taskKey = getTaskKey(missingUserId, taskIdx);
+              assigneeId = taskReassignments[taskKey] || user.id;
+              taskCountByUser[missingUserId] = taskIdx + 1;
+            } else {
+              // Bulk mode - use bulk reassignment
+              assigneeId = reassignments[missingUserId] || user.id;
+            }
           }
         }
 
@@ -225,6 +401,8 @@ export const ProjectTemplates = ({ workspaceId }: ProjectTemplatesProps) => {
       setSelectedTemplate(null);
       setMissingAssignees([]);
       setReassignments({});
+      setIndividualMode({});
+      setTaskReassignments({});
     } catch (error) {
       console.error('Error applying template:', error);
       toast({
@@ -559,8 +737,8 @@ export const ProjectTemplates = ({ workspaceId }: ProjectTemplatesProps) => {
                   <Play className="w-4 h-4 mr-2" />
                   Use Template
                 </Button>
-                <Button variant="outline" size="icon">
-                  <Copy className="w-4 h-4" />
+                <Button variant="outline" size="icon" onClick={() => handleEditTemplate(template)}>
+                  <Edit2 className="w-4 h-4" />
                 </Button>
               </div>
             </CardContent>
@@ -606,29 +784,87 @@ export const ProjectTemplates = ({ workspaceId }: ProjectTemplatesProps) => {
                 {missingAssignees.map((userId) => {
                   const tasksForUser = selectedTemplate?.template_tasks?.filter(
                     t => t.default_assignee_id === userId
-                  ).length || 0;
+                  ) || [];
+                  const taskCount = tasksForUser.length;
+                  const isIndividual = individualMode[userId];
+
                   return (
-                    <div key={userId} className="flex items-center gap-3">
-                      <span className="text-sm font-medium min-w-[140px]">
-                        {getUserName(userId)} ({tasksForUser} task{tasksForUser !== 1 ? 's' : ''}):
-                      </span>
-                      <Select
-                        value={reassignments[userId] || ''}
-                        onValueChange={(value) =>
-                          setReassignments((prev) => ({ ...prev, [userId]: value }))
-                        }
-                      >
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Reassign to..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {getWorkspaceMemberUsers().map((u) => (
-                            <SelectItem key={u.id} value={u.id}>
-                              {u.full_name || u.email}
-                            </SelectItem>
+                    <div key={userId} className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-medium min-w-[140px]">
+                          {getUserName(userId)} ({taskCount} task{taskCount !== 1 ? 's' : ''}):
+                        </span>
+                        {!isIndividual ? (
+                          <Select
+                            value={reassignments[userId] || ''}
+                            onValueChange={(value) => handleBulkReassignment(userId, value)}
+                          >
+                            <SelectTrigger className="flex-1">
+                              <SelectValue placeholder="Reassign all to..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {getWorkspaceMemberUsers().map((u) => (
+                                <SelectItem key={u.id} value={u.id}>
+                                  {u.full_name || u.email}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <span className="flex-1 text-sm text-amber-700">Assigning individually</span>
+                        )}
+                        {taskCount > 1 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleIndividualMode(userId)}
+                            className="text-xs"
+                          >
+                            {isIndividual ? (
+                              <>
+                                <ChevronUp className="w-3 h-3 mr-1" />
+                                Bulk
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="w-3 h-3 mr-1" />
+                                Individual
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Individual task assignments */}
+                      {isIndividual && (
+                        <div className="ml-4 space-y-2 border-l-2 border-amber-200 pl-3">
+                          {tasksForUser.map((task, idx) => (
+                            <div key={idx} className="flex items-center gap-2 text-sm">
+                              <span className="text-gray-600 min-w-[150px] truncate">{task.title}</span>
+                              <Select
+                                value={taskReassignments[getTaskKey(userId, idx)] || ''}
+                                onValueChange={(value) =>
+                                  setTaskReassignments(prev => ({
+                                    ...prev,
+                                    [getTaskKey(userId, idx)]: value
+                                  }))
+                                }
+                              >
+                                <SelectTrigger className="flex-1 h-8">
+                                  <SelectValue placeholder="Assign to..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {getWorkspaceMemberUsers().map((u) => (
+                                    <SelectItem key={u.id} value={u.id}>
+                                      {u.full_name || u.email}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
                           ))}
-                        </SelectContent>
-                      </Select>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -679,6 +915,122 @@ export const ProjectTemplates = ({ workspaceId }: ProjectTemplatesProps) => {
               </Button>
               <Button onClick={handleApplyTemplate} disabled={applyingTemplate}>
                 {applyingTemplate ? 'Creating Tasks...' : 'Apply Template'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Template Dialog */}
+      <Dialog open={editTemplateDialog} onOpenChange={setEditTemplateDialog}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Template</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-template-name">Template Name</Label>
+                <Input
+                  id="edit-template-name"
+                  value={editTemplateName}
+                  onChange={(e) => setEditTemplateName(e.target.value)}
+                  placeholder="Enter template name..."
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-template-category">Category</Label>
+                <Select value={editTemplateCategory} onValueChange={setEditTemplateCategory}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Marketing">Marketing</SelectItem>
+                    <SelectItem value="Design">Design</SelectItem>
+                    <SelectItem value="Development">Development</SelectItem>
+                    <SelectItem value="Content">Content</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="edit-template-description">Description</Label>
+              <Textarea
+                id="edit-template-description"
+                value={editTemplateDescription}
+                onChange={(e) => setEditTemplateDescription(e.target.value)}
+                placeholder="Enter template description..."
+                className="min-h-[80px]"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-template-duration">Duration</Label>
+              <Input
+                id="edit-template-duration"
+                value={editTemplateDuration}
+                onChange={(e) => setEditTemplateDuration(e.target.value)}
+                placeholder="e.g., 2 weeks, 1 month..."
+              />
+            </div>
+
+            {/* Edit Template Tasks */}
+            <div className="space-y-4">
+              <Label>Template Tasks ({editTemplateTasks.length})</Label>
+
+              {editTemplateTasks.length === 0 ? (
+                <p className="text-sm text-gray-500">No tasks in this template.</p>
+              ) : (
+                <div className="space-y-2 max-h-80 overflow-y-auto">
+                  {editTemplateTasks.map((task, index) => (
+                    <div key={index} className="flex items-center gap-3 p-3 border rounded-lg">
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{task.title}</span>
+                          <Badge variant="secondary" className="text-xs">
+                            <Calendar className="w-3 h-3 mr-1" />
+                            Day {task.relative_due_days}
+                          </Badge>
+                        </div>
+                        {task.description && (
+                          <p className="text-sm text-gray-600">{task.description}</p>
+                        )}
+                      </div>
+                      <Select
+                        value={task.default_assignee_id || ''}
+                        onValueChange={(value) => updateEditTaskAssignee(index, value)}
+                      >
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="Assign to..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Unassigned</SelectItem>
+                          {users.map((u) => (
+                            <SelectItem key={u.id} value={u.id}>
+                              {u.full_name || u.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeEditTask(index)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-4 border-t">
+              <Button variant="outline" onClick={() => setEditTemplateDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveTemplate} disabled={savingTemplate || !editTemplateName.trim()}>
+                {savingTemplate ? 'Saving...' : 'Save Changes'}
               </Button>
             </div>
           </div>
