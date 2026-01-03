@@ -12,6 +12,7 @@ import Auth from "./pages/Auth";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import Mobile from "./pages/Mobile";
+import GoogleAuthCallback from "./pages/GoogleAuthCallback";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,6 +34,7 @@ const App = () => {
           <AuthProvider>
             <Routes>
               <Route path="/auth" element={<Auth />} />
+              <Route path="/auth/google/callback" element={<GoogleAuthCallback />} />
               <Route path="/settings" element={
                 <ProtectedRoute>
                   <Settings />

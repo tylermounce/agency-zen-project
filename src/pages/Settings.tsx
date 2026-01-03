@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Users, Building, Shield, Bell, Palette, FileText } from 'lucide-react';
+import { ArrowLeft, User, Users, Building, Shield, Bell, Palette, FileText, HardDrive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -11,8 +11,9 @@ import { UserManagement } from '@/components/settings/UserManagement';
 import { WorkspaceSettings } from '@/components/settings/WorkspaceSettings';
 import { SecuritySettings } from '@/components/settings/SecuritySettings';
 import { TemplateManagement } from '@/components/settings/TemplateManagement';
+import { GoogleDriveSettings } from '@/components/settings/GoogleDriveSettings';
 
-type SettingsSection = 'profile' | 'security' | 'users' | 'workspaces' | 'templates' | 'notifications' | 'appearance';
+type SettingsSection = 'profile' | 'security' | 'users' | 'workspaces' | 'templates' | 'integrations' | 'notifications' | 'appearance';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -39,6 +40,7 @@ export default function Settings() {
     { id: 'users' as const, label: 'User Management', icon: Users, description: 'Manage users and roles' },
     { id: 'workspaces' as const, label: 'Workspace Settings', icon: Building, description: 'Configure workspaces and permissions' },
     { id: 'templates' as const, label: 'Project Templates', icon: FileText, description: 'Create and manage project templates' },
+    { id: 'integrations' as const, label: 'Integrations', icon: HardDrive, description: 'Google Drive and other integrations' },
   ];
 
   const allSections = isAdmin ? [...userSections, ...adminSections] : userSections;
@@ -55,6 +57,8 @@ export default function Settings() {
         return isAdmin ? <WorkspaceSettings /> : null;
       case 'templates':
         return isAdmin ? <TemplateManagement /> : null;
+      case 'integrations':
+        return isAdmin ? <GoogleDriveSettings /> : null;
       case 'notifications':
         return (
           <Card>
