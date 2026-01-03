@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Copy, Star, X } from 'lucide-react';
+import { Plus, Copy, Star, X, Calendar, Play } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -11,20 +11,59 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUsers } from '@/hooks/useUsers';
+import { useUnifiedData } from '@/hooks/useUnifiedData';
+import { toast } from '@/hooks/use-toast';
 
-export const ProjectTemplates = () => {
+interface TemplateTask {
+  id?: string;
+  title: string;
+  description: string;
+  priority: string;
+  relative_due_days: number;
+  assignee_role: string;
+  order_index?: number;
+}
+
+interface Template {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  duration: string;
+  tasks_count: number;
+  is_popular: boolean;
+  template_tasks: TemplateTask[];
+}
+
+interface ProjectTemplatesProps {
+  workspaceId: string;
+}
+
+export const ProjectTemplates = ({ workspaceId }: ProjectTemplatesProps) => {
   const { user } = useAuth();
-  const [templates, setTemplates] = useState([]);
+  const { users } = useUsers();
+  const { createTask } = useUnifiedData();
+  const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [newTemplateDialog, setNewTemplateDialog] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateDescription, setNewTemplateDescription] = useState('');
   const [newTemplateCategory, setNewTemplateCategory] = useState('');
   const [newTemplateDuration, setNewTemplateDuration] = useState('');
-  const [templateTasks, setTemplateTasks] = useState<Array<{title: string; description: string; priority: string}>>([]);
+  const [templateTasks, setTemplateTasks] = useState<TemplateTask[]>([]);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState('medium');
+  const [newTaskDueDays, setNewTaskDueDays] = useState('0');
+  const [newTaskRole, setNewTaskRole] = useState('');
+
+  // Use Template dialog state
+  const [useTemplateDialog, setUseTemplateDialog] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [roleAssignments, setRoleAssignments] = useState<Record<string, string>>({});
+  const [applyingTemplate, setApplyingTemplate] = useState(false);
 
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -58,16 +97,93 @@ export const ProjectTemplates = () => {
 
   const addTemplateTask = () => {
     if (!newTaskTitle.trim()) return;
-    
+
     setTemplateTasks(prev => [...prev, {
       title: newTaskTitle,
       description: newTaskDescription,
-      priority: newTaskPriority
+      priority: newTaskPriority,
+      relative_due_days: parseInt(newTaskDueDays) || 0,
+      assignee_role: newTaskRole
     }]);
-    
+
     setNewTaskTitle('');
     setNewTaskDescription('');
     setNewTaskPriority('medium');
+    setNewTaskDueDays('0');
+    setNewTaskRole('');
+  };
+
+  // Get unique roles from selected template
+  const getTemplateRoles = (template: Template): string[] => {
+    const roles = template.template_tasks
+      ?.map(task => task.assignee_role)
+      .filter((role): role is string => !!role && role.trim() !== '');
+    return [...new Set(roles)];
+  };
+
+  // Open Use Template dialog
+  const handleUseTemplate = (template: Template) => {
+    setSelectedTemplate(template);
+    setStartDate(new Date().toISOString().split('T')[0]);
+    // Initialize role assignments
+    const roles = getTemplateRoles(template);
+    const initialAssignments: Record<string, string> = {};
+    roles.forEach(role => {
+      initialAssignments[role] = '';
+    });
+    setRoleAssignments(initialAssignments);
+    setUseTemplateDialog(true);
+  };
+
+  // Apply template to create tasks
+  const handleApplyTemplate = async () => {
+    if (!selectedTemplate || !workspaceId || !user) return;
+
+    setApplyingTemplate(true);
+
+    try {
+      const tasks = selectedTemplate.template_tasks || [];
+
+      for (const templateTask of tasks) {
+        // Calculate due date based on start date + relative days
+        const dueDate = new Date(startDate);
+        dueDate.setDate(dueDate.getDate() + (templateTask.relative_due_days || 0));
+
+        // Get assignee from role mapping, fall back to current user
+        const assigneeId = templateTask.assignee_role
+          ? roleAssignments[templateTask.assignee_role] || user.id
+          : user.id;
+
+        await createTask({
+          title: templateTask.title,
+          description: templateTask.description || '',
+          workspace_id: workspaceId,
+          project_id: null,
+          assignee_id: assigneeId,
+          due_date: dueDate.toISOString().split('T')[0],
+          priority: (templateTask.priority as 'low' | 'medium' | 'high') || 'medium',
+          status: 'todo',
+          completed: false
+        });
+      }
+
+      toast({
+        title: "Template applied!",
+        description: `Created ${tasks.length} tasks from "${selectedTemplate.name}"`
+      });
+
+      setUseTemplateDialog(false);
+      setSelectedTemplate(null);
+    } catch (error) {
+      console.error('Error applying template:', error);
+      toast({
+        title: "Error applying template",
+        description: "Some tasks may not have been created",
+        variant: "destructive"
+      });
+    } finally {
+      setApplyingTemplate(false);
+    }
   };
 
   const removeTemplateTask = (index: number) => {
@@ -102,7 +218,9 @@ export const ProjectTemplates = () => {
           description: task.description,
           priority: task.priority,
           order_index: index,
-          status: 'todo'
+          status: 'todo',
+          relative_due_days: task.relative_due_days || 0,
+          assignee_role: task.assignee_role || null
         }));
 
         const { error: tasksError } = await supabase
@@ -245,6 +363,26 @@ export const ProjectTemplates = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs text-gray-500">Due (days from start)</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={newTaskDueDays}
+                        onChange={(e) => setNewTaskDueDays(e.target.value)}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Assignee Role</Label>
+                      <Input
+                        value={newTaskRole}
+                        onChange={(e) => setNewTaskRole(e.target.value)}
+                        placeholder="e.g., Project Manager"
+                      />
+                    </div>
+                  </div>
                   <Textarea
                     value={newTaskDescription}
                     onChange={(e) => setNewTaskDescription(e.target.value)}
@@ -263,7 +401,7 @@ export const ProjectTemplates = () => {
                     {templateTasks.map((task, index) => (
                       <div key={index} className="flex items-start justify-between p-3 border rounded-lg">
                         <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-1">
+                          <div className="flex items-center flex-wrap gap-2 mb-1">
                             <span className="font-medium">{task.title}</span>
                             <Badge variant="outline" className={
                               task.priority === 'high' ? 'border-red-200 text-red-700' :
@@ -272,14 +410,23 @@ export const ProjectTemplates = () => {
                             }>
                               {task.priority}
                             </Badge>
+                            <Badge variant="secondary" className="text-xs">
+                              <Calendar className="w-3 h-3 mr-1" />
+                              Day {task.relative_due_days}
+                            </Badge>
+                            {task.assignee_role && (
+                              <Badge variant="outline" className="text-xs">
+                                {task.assignee_role}
+                              </Badge>
+                            )}
                           </div>
                           {task.description && (
                             <p className="text-sm text-gray-600">{task.description}</p>
                           )}
                         </div>
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
+                        <Button
+                          size="sm"
+                          variant="ghost"
                           onClick={() => removeTemplateTask(index)}
                         >
                           <X className="w-4 h-4" />
@@ -350,8 +497,8 @@ export const ProjectTemplates = () => {
               </div>
               
               <div className="flex space-x-2 pt-2">
-                <Button className="flex-1">
-                  <Plus className="w-4 h-4 mr-2" />
+                <Button className="flex-1" onClick={() => handleUseTemplate(template)}>
+                  <Play className="w-4 h-4 mr-2" />
                   Use Template
                 </Button>
                 <Button variant="outline" size="icon">
@@ -363,6 +510,93 @@ export const ProjectTemplates = () => {
           ))}
         </div>
       )}
+
+      {/* Use Template Dialog */}
+      <Dialog open={useTemplateDialog} onOpenChange={setUseTemplateDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Apply Template: {selectedTemplate?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              This will create {selectedTemplate?.template_tasks?.length || 0} tasks in this workspace.
+            </p>
+
+            <div>
+              <Label htmlFor="start-date">Start Date</Label>
+              <Input
+                id="start-date"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Task due dates will be calculated from this date
+              </p>
+            </div>
+
+            {selectedTemplate && getTemplateRoles(selectedTemplate).length > 0 && (
+              <div className="space-y-3">
+                <Label>Assign Roles to Team Members</Label>
+                {getTemplateRoles(selectedTemplate).map((role) => (
+                  <div key={role} className="flex items-center gap-3">
+                    <span className="text-sm font-medium min-w-[120px]">{role}:</span>
+                    <Select
+                      value={roleAssignments[role] || ''}
+                      onValueChange={(value) =>
+                        setRoleAssignments((prev) => ({ ...prev, [role]: value }))
+                      }
+                    >
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Select team member" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users.map((u) => (
+                          <SelectItem key={u.id} value={u.id}>
+                            {u.full_name || u.email}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Preview tasks */}
+            {selectedTemplate?.template_tasks && selectedTemplate.template_tasks.length > 0 && (
+              <div className="space-y-2">
+                <Label>Tasks to be created:</Label>
+                <div className="max-h-48 overflow-y-auto space-y-1 border rounded-lg p-2">
+                  {selectedTemplate.template_tasks
+                    .sort((a, b) => (a.relative_due_days || 0) - (b.relative_due_days || 0))
+                    .map((task, idx) => {
+                      const dueDate = new Date(startDate);
+                      dueDate.setDate(dueDate.getDate() + (task.relative_due_days || 0));
+                      return (
+                        <div key={idx} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
+                          <span>{task.title}</span>
+                          <span className="text-gray-500">
+                            {dueDate.toLocaleDateString()}
+                          </span>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-2 pt-4 border-t">
+              <Button variant="outline" onClick={() => setUseTemplateDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleApplyTemplate} disabled={applyingTemplate}>
+                {applyingTemplate ? 'Creating Tasks...' : 'Apply Template'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -444,7 +444,7 @@ const Index = () => {
 
             {isAdmin && (
               <TabsContent value="templates" className="space-y-6">
-                <ProjectTemplates />
+                <ProjectTemplates workspaceId={selectedWorkspace} />
               </TabsContent>
             )}
           </Tabs>
