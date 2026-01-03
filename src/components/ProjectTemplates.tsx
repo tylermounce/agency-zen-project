@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Copy, Star, X, Calendar, Play } from 'lucide-react';
+import { Plus, Copy, Star, X, Calendar, Play, AlertCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUsers } from '@/hooks/useUsers';
 import { useUnifiedData } from '@/hooks/useUnifiedData';
+import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { toast } from '@/hooks/use-toast';
 
 interface TemplateTask {
@@ -21,7 +22,7 @@ interface TemplateTask {
   description: string;
   priority: string;
   relative_due_days: number;
-  assignee_role: string;
+  default_assignee_id: string | null;
   order_index?: number;
 }
 
@@ -44,6 +45,7 @@ export const ProjectTemplates = ({ workspaceId }: ProjectTemplatesProps) => {
   const { user } = useAuth();
   const { users } = useUsers();
   const { createTask } = useUnifiedData();
+  const { getWorkspaceMembers } = useWorkspaceMembers();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [newTemplateDialog, setNewTemplateDialog] = useState(false);
@@ -56,13 +58,15 @@ export const ProjectTemplates = ({ workspaceId }: ProjectTemplatesProps) => {
   const [newTaskDescription, setNewTaskDescription] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState('medium');
   const [newTaskDueDays, setNewTaskDueDays] = useState('0');
-  const [newTaskRole, setNewTaskRole] = useState('');
+  const [newTaskAssignee, setNewTaskAssignee] = useState('');
 
   // Use Template dialog state
   const [useTemplateDialog, setUseTemplateDialog] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [roleAssignments, setRoleAssignments] = useState<Record<string, string>>({});
+  const [missingAssignees, setMissingAssignees] = useState<string[]>([]);
+  const [reassignments, setReassignments] = useState<Record<string, string>>({});
+  const [workspaceMemberIds, setWorkspaceMemberIds] = useState<string[]>([]);
   const [applyingTemplate, setApplyingTemplate] = useState(false);
 
   useEffect(() => {
@@ -103,41 +107,78 @@ export const ProjectTemplates = ({ workspaceId }: ProjectTemplatesProps) => {
       description: newTaskDescription,
       priority: newTaskPriority,
       relative_due_days: parseInt(newTaskDueDays) || 0,
-      assignee_role: newTaskRole
+      default_assignee_id: newTaskAssignee || null
     }]);
 
     setNewTaskTitle('');
     setNewTaskDescription('');
     setNewTaskPriority('medium');
     setNewTaskDueDays('0');
-    setNewTaskRole('');
+    setNewTaskAssignee('');
   };
 
-  // Get unique roles from selected template
-  const getTemplateRoles = (template: Template): string[] => {
-    const roles = template.template_tasks
-      ?.map(task => task.assignee_role)
-      .filter((role): role is string => !!role && role.trim() !== '');
-    return [...new Set(roles)];
+  // Get user name by ID
+  const getUserName = (userId: string | null): string => {
+    if (!userId) return 'Unassigned';
+    const foundUser = users.find(u => u.id === userId);
+    return foundUser?.full_name || foundUser?.email || 'Unknown';
   };
 
-  // Open Use Template dialog
-  const handleUseTemplate = (template: Template) => {
+  // Open Use Template dialog - check for missing workspace members
+  const handleUseTemplate = async (template: Template) => {
     setSelectedTemplate(template);
     setStartDate(new Date().toISOString().split('T')[0]);
-    // Initialize role assignments
-    const roles = getTemplateRoles(template);
-    const initialAssignments: Record<string, string> = {};
-    roles.forEach(role => {
-      initialAssignments[role] = '';
-    });
-    setRoleAssignments(initialAssignments);
+
+    // Fetch workspace members
+    try {
+      const members = await getWorkspaceMembers(workspaceId);
+      const memberIds = members.map(m => m.user_id);
+      setWorkspaceMemberIds(memberIds);
+
+      // Find assignees that are NOT in the workspace
+      const templateAssignees = template.template_tasks
+        ?.map(task => task.default_assignee_id)
+        .filter((id): id is string => !!id) || [];
+
+      const uniqueAssignees = [...new Set(templateAssignees)];
+      const missing = uniqueAssignees.filter(id => !memberIds.includes(id));
+
+      setMissingAssignees(missing);
+
+      // Initialize reassignments for missing users
+      const initialReassignments: Record<string, string> = {};
+      missing.forEach(userId => {
+        initialReassignments[userId] = '';
+      });
+      setReassignments(initialReassignments);
+    } catch (error) {
+      console.error('Error fetching workspace members:', error);
+      setWorkspaceMemberIds([]);
+      setMissingAssignees([]);
+    }
+
     setUseTemplateDialog(true);
+  };
+
+  // Get workspace members as user objects for the dropdown
+  const getWorkspaceMemberUsers = () => {
+    return users.filter(u => workspaceMemberIds.includes(u.id));
   };
 
   // Apply template to create tasks
   const handleApplyTemplate = async () => {
     if (!selectedTemplate || !workspaceId || !user) return;
+
+    // Check if all missing assignees have been reassigned
+    const unassignedMissing = missingAssignees.filter(id => !reassignments[id]);
+    if (unassignedMissing.length > 0) {
+      toast({
+        title: "Please assign all team members",
+        description: "Some tasks need to be reassigned before applying",
+        variant: "destructive"
+      });
+      return;
+    }
 
     setApplyingTemplate(true);
 
@@ -149,10 +190,18 @@ export const ProjectTemplates = ({ workspaceId }: ProjectTemplatesProps) => {
         const dueDate = new Date(startDate);
         dueDate.setDate(dueDate.getDate() + (templateTask.relative_due_days || 0));
 
-        // Get assignee from role mapping, fall back to current user
-        const assigneeId = templateTask.assignee_role
-          ? roleAssignments[templateTask.assignee_role] || user.id
-          : user.id;
+        // Determine assignee:
+        // 1. If default assignee is in workspace, use them
+        // 2. If default assignee is NOT in workspace, use the reassignment
+        // 3. If no assignee set, use current user
+        let assigneeId = user.id;
+        if (templateTask.default_assignee_id) {
+          if (workspaceMemberIds.includes(templateTask.default_assignee_id)) {
+            assigneeId = templateTask.default_assignee_id;
+          } else if (reassignments[templateTask.default_assignee_id]) {
+            assigneeId = reassignments[templateTask.default_assignee_id];
+          }
+        }
 
         await createTask({
           title: templateTask.title,
@@ -174,6 +223,8 @@ export const ProjectTemplates = ({ workspaceId }: ProjectTemplatesProps) => {
 
       setUseTemplateDialog(false);
       setSelectedTemplate(null);
+      setMissingAssignees([]);
+      setReassignments({});
     } catch (error) {
       console.error('Error applying template:', error);
       toast({
@@ -220,7 +271,7 @@ export const ProjectTemplates = ({ workspaceId }: ProjectTemplatesProps) => {
           order_index: index,
           status: 'todo',
           relative_due_days: task.relative_due_days || 0,
-          assignee_role: task.assignee_role || null
+          default_assignee_id: task.default_assignee_id || null
         }));
 
         const { error: tasksError } = await supabase
@@ -375,12 +426,19 @@ export const ProjectTemplates = ({ workspaceId }: ProjectTemplatesProps) => {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">Assignee Role</Label>
-                      <Input
-                        value={newTaskRole}
-                        onChange={(e) => setNewTaskRole(e.target.value)}
-                        placeholder="e.g., Project Manager"
-                      />
+                      <Label className="text-xs text-gray-500">Assign To</Label>
+                      <Select value={newTaskAssignee} onValueChange={setNewTaskAssignee}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select team member" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {users.map((u) => (
+                            <SelectItem key={u.id} value={u.id}>
+                              {u.full_name || u.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                   <Textarea
@@ -414,9 +472,9 @@ export const ProjectTemplates = ({ workspaceId }: ProjectTemplatesProps) => {
                               <Calendar className="w-3 h-3 mr-1" />
                               Day {task.relative_due_days}
                             </Badge>
-                            {task.assignee_role && (
+                            {task.default_assignee_id && (
                               <Badge variant="outline" className="text-xs">
-                                {task.assignee_role}
+                                {getUserName(task.default_assignee_id)}
                               </Badge>
                             )}
                           </div>
@@ -535,31 +593,45 @@ export const ProjectTemplates = ({ workspaceId }: ProjectTemplatesProps) => {
               </p>
             </div>
 
-            {selectedTemplate && getTemplateRoles(selectedTemplate).length > 0 && (
-              <div className="space-y-3">
-                <Label>Assign Roles to Team Members</Label>
-                {getTemplateRoles(selectedTemplate).map((role) => (
-                  <div key={role} className="flex items-center gap-3">
-                    <span className="text-sm font-medium min-w-[120px]">{role}:</span>
-                    <Select
-                      value={roleAssignments[role] || ''}
-                      onValueChange={(value) =>
-                        setRoleAssignments((prev) => ({ ...prev, [role]: value }))
-                      }
-                    >
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Select team member" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {users.map((u) => (
-                          <SelectItem key={u.id} value={u.id}>
-                            {u.full_name || u.email}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ))}
+            {/* Show reassignment UI only if there are missing members */}
+            {missingAssignees.length > 0 && (
+              <div className="space-y-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="flex items-center gap-2 text-amber-800">
+                  <AlertCircle className="w-4 h-4" />
+                  <Label className="text-amber-800 font-medium">Team Member Reassignment Needed</Label>
+                </div>
+                <p className="text-sm text-amber-700">
+                  The following team members are not in this workspace. Please assign their tasks to someone else:
+                </p>
+                {missingAssignees.map((userId) => {
+                  const tasksForUser = selectedTemplate?.template_tasks?.filter(
+                    t => t.default_assignee_id === userId
+                  ).length || 0;
+                  return (
+                    <div key={userId} className="flex items-center gap-3">
+                      <span className="text-sm font-medium min-w-[140px]">
+                        {getUserName(userId)} ({tasksForUser} task{tasksForUser !== 1 ? 's' : ''}):
+                      </span>
+                      <Select
+                        value={reassignments[userId] || ''}
+                        onValueChange={(value) =>
+                          setReassignments((prev) => ({ ...prev, [userId]: value }))
+                        }
+                      >
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Reassign to..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getWorkspaceMemberUsers().map((u) => (
+                            <SelectItem key={u.id} value={u.id}>
+                              {u.full_name || u.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
@@ -573,12 +645,27 @@ export const ProjectTemplates = ({ workspaceId }: ProjectTemplatesProps) => {
                     .map((task, idx) => {
                       const dueDate = new Date(startDate);
                       dueDate.setDate(dueDate.getDate() + (task.relative_due_days || 0));
+                      const isMissing = task.default_assignee_id && missingAssignees.includes(task.default_assignee_id);
+                      const assigneeName = task.default_assignee_id
+                        ? (isMissing && reassignments[task.default_assignee_id]
+                            ? getUserName(reassignments[task.default_assignee_id])
+                            : getUserName(task.default_assignee_id))
+                        : 'You';
                       return (
                         <div key={idx} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
-                          <span>{task.title}</span>
-                          <span className="text-gray-500">
-                            {dueDate.toLocaleDateString()}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span>{task.title}</span>
+                            {isMissing && !reassignments[task.default_assignee_id] && (
+                              <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+                                Needs reassignment
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-gray-500">
+                            <span>{assigneeName}</span>
+                            <span>•</span>
+                            <span>{dueDate.toLocaleDateString()}</span>
+                          </div>
                         </div>
                       );
                     })}
