@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Shield, ShieldCheck, MoreHorizontal, Users } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useAuth } from '@/contexts/AuthContext';
+import { Shield, ShieldCheck, MoreHorizontal, Users, Trash2 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { formatters } from '@/lib/timezone';
 
 interface UserWithRole {
@@ -26,6 +27,12 @@ export const UserManagement = () => {
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
+
+  // Delete user state
+  const [userToDelete, setUserToDelete] = useState<UserWithRole | null>(null);
+  const [deleteUserDialog, setDeleteUserDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -186,6 +193,51 @@ export const UserManagement = () => {
     return email.split('@')[0].substring(0, 2).toUpperCase();
   };
 
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    setDeleting(true);
+
+    try {
+      // Delete user roles first
+      await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userToDelete.id);
+
+      // Delete workspace memberships
+      await supabase
+        .from('workspace_members')
+        .delete()
+        .eq('user_id', userToDelete.id);
+
+      // Delete the user's profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userToDelete.id);
+
+      if (profileError) throw profileError;
+
+      toast({
+        title: "User removed",
+        description: `${userToDelete.full_name || userToDelete.email} has been removed from the account.`,
+      });
+
+      setDeleteUserDialog(false);
+      setUserToDelete(null);
+      await fetchUsers();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove user. They may still have associated data.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <Card>
@@ -323,7 +375,7 @@ export const UserManagement = () => {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Remove User Role</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Are you sure you want to remove the user role from {user.full_name}? 
+                                    Are you sure you want to remove the user role from {user.full_name}?
                                     They will lose basic user access.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
@@ -336,6 +388,22 @@ export const UserManagement = () => {
                               </AlertDialogContent>
                             </AlertDialog>
                           )}
+                          {user.id !== currentUser?.id && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-red-600 focus:text-red-600"
+                                onSelect={(e) => {
+                                  e.preventDefault();
+                                  setUserToDelete(user);
+                                  setDeleteUserDialog(true);
+                                }}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Remove User
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -346,6 +414,29 @@ export const UserManagement = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Delete User Confirmation Dialog */}
+      <AlertDialog open={deleteUserDialog} onOpenChange={setDeleteUserDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove User from Account</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove {userToDelete?.full_name || userToDelete?.email} from the account?
+              This will remove all their roles, workspace memberships, and profile data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleting}
+            >
+              {deleting ? 'Removing...' : 'Remove User'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

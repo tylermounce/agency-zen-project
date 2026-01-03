@@ -52,8 +52,6 @@ export const TemplateManagement = () => {
   const [createDialog, setCreateDialog] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateDescription, setNewTemplateDescription] = useState('');
-  const [newTemplateCategory, setNewTemplateCategory] = useState('');
-  const [newTemplateDuration, setNewTemplateDuration] = useState('');
   const [templateTasks, setTemplateTasks] = useState<TemplateTask[]>([]);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
@@ -67,10 +65,15 @@ export const TemplateManagement = () => {
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [editTemplateName, setEditTemplateName] = useState('');
   const [editTemplateDescription, setEditTemplateDescription] = useState('');
-  const [editTemplateCategory, setEditTemplateCategory] = useState('');
-  const [editTemplateDuration, setEditTemplateDuration] = useState('');
   const [editTemplateTasks, setEditTemplateTasks] = useState<TemplateTask[]>([]);
   const [saving, setSaving] = useState(false);
+
+  // Edit dialog - add new task state
+  const [editNewTaskTitle, setEditNewTaskTitle] = useState('');
+  const [editNewTaskDescription, setEditNewTaskDescription] = useState('');
+  const [editNewTaskPriority, setEditNewTaskPriority] = useState('medium');
+  const [editNewTaskDueDays, setEditNewTaskDueDays] = useState('0');
+  const [editNewTaskAssignee, setEditNewTaskAssignee] = useState('');
 
   // Delete confirmation
   const [deleteDialog, setDeleteDialog] = useState(false);
@@ -124,7 +127,7 @@ export const TemplateManagement = () => {
   };
 
   const handleCreateTemplate = async () => {
-    if (!newTemplateName.trim() || !newTemplateCategory) return;
+    if (!newTemplateName.trim()) return;
     setCreating(true);
 
     try {
@@ -133,8 +136,8 @@ export const TemplateManagement = () => {
         .insert({
           name: newTemplateName,
           description: newTemplateDescription,
-          category: newTemplateCategory,
-          duration: newTemplateDuration,
+          category: 'General',
+          duration: '',
           tasks_count: templateTasks.length,
           is_popular: false
         })
@@ -177,8 +180,6 @@ export const TemplateManagement = () => {
   const resetCreateForm = () => {
     setNewTemplateName('');
     setNewTemplateDescription('');
-    setNewTemplateCategory('');
-    setNewTemplateDuration('');
     setTemplateTasks([]);
   };
 
@@ -186,9 +187,13 @@ export const TemplateManagement = () => {
     setEditingTemplate(template);
     setEditTemplateName(template.name);
     setEditTemplateDescription(template.description || '');
-    setEditTemplateCategory(template.category);
-    setEditTemplateDuration(template.duration || '');
     setEditTemplateTasks(template.template_tasks?.map(t => ({ ...t })) || []);
+    // Reset add task form
+    setEditNewTaskTitle('');
+    setEditNewTaskDescription('');
+    setEditNewTaskPriority('medium');
+    setEditNewTaskDueDays('0');
+    setEditNewTaskAssignee('');
     setEditDialog(true);
   };
 
@@ -202,8 +207,6 @@ export const TemplateManagement = () => {
         .update({
           name: editTemplateName,
           description: editTemplateDescription,
-          category: editTemplateCategory,
-          duration: editTemplateDuration,
           tasks_count: editTemplateTasks.length
         })
         .eq('id', editingTemplate.id);
@@ -243,14 +246,32 @@ export const TemplateManagement = () => {
     }
   };
 
-  const updateEditTaskAssignee = (taskIndex: number, assigneeId: string) => {
+  // Update task fields in edit mode
+  const updateEditTask = (taskIndex: number, field: keyof TemplateTask, value: string | number | null) => {
     setEditTemplateTasks(prev => prev.map((task, idx) =>
-      idx === taskIndex ? { ...task, default_assignee_id: assigneeId || null } : task
+      idx === taskIndex ? { ...task, [field]: value } : task
     ));
   };
 
   const removeEditTask = (taskIndex: number) => {
     setEditTemplateTasks(prev => prev.filter((_, idx) => idx !== taskIndex));
+  };
+
+  // Add new task in edit mode
+  const addEditTask = () => {
+    if (!editNewTaskTitle.trim()) return;
+    setEditTemplateTasks(prev => [...prev, {
+      title: editNewTaskTitle,
+      description: editNewTaskDescription,
+      priority: editNewTaskPriority,
+      relative_due_days: parseInt(editNewTaskDueDays) || 0,
+      default_assignee_id: editNewTaskAssignee || null
+    }]);
+    setEditNewTaskTitle('');
+    setEditNewTaskDescription('');
+    setEditNewTaskPriority('medium');
+    setEditNewTaskDueDays('0');
+    setEditNewTaskAssignee('');
   };
 
   const handleDeleteTemplate = async () => {
@@ -271,16 +292,6 @@ export const TemplateManagement = () => {
       toast({ title: "Error deleting template", variant: "destructive" });
     } finally {
       setDeleting(false);
-    }
-  };
-
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'Marketing': return 'bg-blue-100 text-blue-800';
-      case 'Design': return 'bg-purple-100 text-purple-800';
-      case 'Development': return 'bg-green-100 text-green-800';
-      case 'Content': return 'bg-orange-100 text-orange-800';
-      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -311,31 +322,13 @@ export const TemplateManagement = () => {
                   <DialogTitle>Create New Template</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Template Name</Label>
-                      <Input value={newTemplateName} onChange={(e) => setNewTemplateName(e.target.value)} placeholder="Enter template name..." />
-                    </div>
-                    <div>
-                      <Label>Category</Label>
-                      <Select value={newTemplateCategory} onValueChange={setNewTemplateCategory}>
-                        <SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Marketing">Marketing</SelectItem>
-                          <SelectItem value="Design">Design</SelectItem>
-                          <SelectItem value="Development">Development</SelectItem>
-                          <SelectItem value="Content">Content</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div>
+                    <Label>Template Name</Label>
+                    <Input value={newTemplateName} onChange={(e) => setNewTemplateName(e.target.value)} placeholder="Enter template name..." />
                   </div>
                   <div>
                     <Label>Description</Label>
                     <Textarea value={newTemplateDescription} onChange={(e) => setNewTemplateDescription(e.target.value)} placeholder="Enter template description..." className="min-h-[80px]" />
-                  </div>
-                  <div>
-                    <Label>Duration</Label>
-                    <Input value={newTemplateDuration} onChange={(e) => setNewTemplateDuration(e.target.value)} placeholder="e.g., 2 weeks, 1 month..." />
                   </div>
 
                   <div className="space-y-4">
@@ -400,7 +393,7 @@ export const TemplateManagement = () => {
 
                   <div className="flex justify-end space-x-2 pt-4 border-t">
                     <Button variant="outline" onClick={() => { setCreateDialog(false); resetCreateForm(); }}>Cancel</Button>
-                    <Button onClick={handleCreateTemplate} disabled={creating || !newTemplateName.trim() || !newTemplateCategory}>
+                    <Button onClick={handleCreateTemplate} disabled={creating || !newTemplateName.trim()}>
                       {creating ? 'Creating...' : 'Create Template'}
                     </Button>
                   </div>
@@ -419,9 +412,7 @@ export const TemplateManagement = () => {
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
                       <span className="font-medium">{template.name}</span>
-                      <Badge className={getCategoryColor(template.category)}>{template.category}</Badge>
                       <span className="text-sm text-gray-500">{template.template_tasks?.length || 0} tasks</span>
-                      {template.duration && <span className="text-sm text-gray-500">• {template.duration}</span>}
                     </div>
                     {template.description && (
                       <p className="text-sm text-gray-600 mt-1">{template.description}</p>
@@ -449,65 +440,110 @@ export const TemplateManagement = () => {
             <DialogTitle>Edit Template</DialogTitle>
           </DialogHeader>
           <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Template Name</Label>
-                <Input value={editTemplateName} onChange={(e) => setEditTemplateName(e.target.value)} />
-              </div>
-              <div>
-                <Label>Category</Label>
-                <Select value={editTemplateCategory} onValueChange={setEditTemplateCategory}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Marketing">Marketing</SelectItem>
-                    <SelectItem value="Design">Design</SelectItem>
-                    <SelectItem value="Development">Development</SelectItem>
-                    <SelectItem value="Content">Content</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Label>Template Name</Label>
+              <Input value={editTemplateName} onChange={(e) => setEditTemplateName(e.target.value)} />
             </div>
             <div>
               <Label>Description</Label>
               <Textarea value={editTemplateDescription} onChange={(e) => setEditTemplateDescription(e.target.value)} className="min-h-[80px]" />
             </div>
-            <div>
-              <Label>Duration</Label>
-              <Input value={editTemplateDuration} onChange={(e) => setEditTemplateDuration(e.target.value)} />
-            </div>
 
             <div className="space-y-4">
               <Label>Template Tasks ({editTemplateTasks.length})</Label>
-              {editTemplateTasks.length === 0 ? (
-                <p className="text-sm text-gray-500">No tasks in this template.</p>
-              ) : (
-                <div className="space-y-2 max-h-80 overflow-y-auto">
+
+              {/* Existing tasks - editable */}
+              {editTemplateTasks.length > 0 && (
+                <div className="space-y-3 max-h-80 overflow-y-auto">
                   {editTemplateTasks.map((task, index) => (
-                    <div key={index} className="flex items-center gap-3 p-3 border rounded-lg">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{task.title}</span>
-                          <Badge variant="secondary" className="text-xs">
-                            <Calendar className="w-3 h-3 mr-1" />Day {task.relative_due_days}
-                          </Badge>
+                    <div key={index} className="p-3 border rounded-lg space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1 space-y-2">
+                          <Input
+                            value={task.title}
+                            onChange={(e) => updateEditTask(index, 'title', e.target.value)}
+                            placeholder="Task title..."
+                          />
+                          <div className="grid grid-cols-3 gap-2">
+                            <Select value={task.priority} onValueChange={(value) => updateEditTask(index, 'priority', value)}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="low">Low</SelectItem>
+                                <SelectItem value="medium">Medium</SelectItem>
+                                <SelectItem value="high">High</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <div>
+                              <Input
+                                type="number"
+                                min="0"
+                                value={task.relative_due_days}
+                                onChange={(e) => updateEditTask(index, 'relative_due_days', parseInt(e.target.value) || 0)}
+                                placeholder="Days"
+                              />
+                            </div>
+                            <Select value={task.default_assignee_id || ''} onValueChange={(value) => updateEditTask(index, 'default_assignee_id', value || null)}>
+                              <SelectTrigger><SelectValue placeholder="Assignee" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="">Unassigned</SelectItem>
+                                {users.map((u) => (
+                                  <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <Textarea
+                            value={task.description || ''}
+                            onChange={(e) => updateEditTask(index, 'description', e.target.value)}
+                            placeholder="Task description..."
+                            className="min-h-[40px]"
+                          />
                         </div>
+                        <Button variant="ghost" size="icon" onClick={() => removeEditTask(index)} className="text-red-500 hover:text-red-700">
+                          <X className="w-4 h-4" />
+                        </Button>
                       </div>
-                      <Select value={task.default_assignee_id || ''} onValueChange={(value) => updateEditTaskAssignee(index, value)}>
-                        <SelectTrigger className="w-[180px]"><SelectValue placeholder="Assign to..." /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">Unassigned</SelectItem>
-                          {users.map((u) => (
-                            <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button variant="ghost" size="icon" onClick={() => removeEditTask(index)} className="text-red-500">
-                        <X className="w-4 h-4" />
-                      </Button>
                     </div>
                   ))}
                 </div>
               )}
+
+              {/* Add new task form */}
+              <div className="border rounded-lg p-4 space-y-3 bg-gray-50">
+                <h4 className="font-medium">Add New Task</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <Input value={editNewTaskTitle} onChange={(e) => setEditNewTaskTitle(e.target.value)} placeholder="Task title..." />
+                  <Select value={editNewTaskPriority} onValueChange={setEditNewTaskPriority}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low Priority</SelectItem>
+                      <SelectItem value="medium">Medium Priority</SelectItem>
+                      <SelectItem value="high">High Priority</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs text-gray-500">Due (days from start)</Label>
+                    <Input type="number" min="0" value={editNewTaskDueDays} onChange={(e) => setEditNewTaskDueDays(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Assign To</Label>
+                    <Select value={editNewTaskAssignee} onValueChange={setEditNewTaskAssignee}>
+                      <SelectTrigger><SelectValue placeholder="Select team member" /></SelectTrigger>
+                      <SelectContent>
+                        {users.map((u) => (
+                          <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <Textarea value={editNewTaskDescription} onChange={(e) => setEditNewTaskDescription(e.target.value)} placeholder="Task description..." className="min-h-[60px]" />
+                <Button size="sm" onClick={addEditTask} disabled={!editNewTaskTitle.trim()}>
+                  <Plus className="w-4 h-4 mr-2" />Add Task
+                </Button>
+              </div>
             </div>
 
             <div className="flex justify-end space-x-2 pt-4 border-t">
