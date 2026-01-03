@@ -34,6 +34,9 @@ interface Template {
   tasks_count: number;
   is_popular: boolean;
   template_tasks: TemplateTask[];
+  // Computed properties
+  tasks?: number;
+  popular?: boolean;
 }
 
 interface ProjectTemplatesProps {
