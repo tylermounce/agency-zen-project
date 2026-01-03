@@ -420,6 +420,8 @@ export type Database = {
           status: string
           template_id: string
           title: string
+          relative_due_days: number
+          default_assignee_id: string | null
         }
         Insert: {
           created_at?: string
@@ -430,6 +432,8 @@ export type Database = {
           status?: string
           template_id: string
           title: string
+          relative_due_days?: number
+          default_assignee_id?: string | null
         }
         Update: {
           created_at?: string
@@ -440,6 +444,8 @@ export type Database = {
           status?: string
           template_id?: string
           title?: string
+          relative_due_days?: number
+          default_assignee_id?: string | null
         }
         Relationships: [
           {
@@ -515,6 +521,7 @@ export type Database = {
           id: string
           name: string
           updated_at: string
+          is_archived: boolean
         }
         Insert: {
           color: string
@@ -523,6 +530,7 @@ export type Database = {
           id?: string
           name: string
           updated_at?: string
+          is_archived?: boolean
         }
         Update: {
           color?: string
@@ -531,8 +539,150 @@ export type Database = {
           id?: string
           name?: string
           updated_at?: string
+          is_archived?: boolean
         }
         Relationships: []
+      }
+      google_drive_settings: {
+        Row: {
+          id: string
+          access_token: string | null
+          refresh_token: string | null
+          token_expiry: string | null
+          root_folder_id: string | null
+          connected_email: string | null
+          is_connected: boolean
+          connected_at: string | null
+          connected_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          access_token?: string | null
+          refresh_token?: string | null
+          token_expiry?: string | null
+          root_folder_id?: string | null
+          connected_email?: string | null
+          is_connected?: boolean
+          connected_at?: string | null
+          connected_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          access_token?: string | null
+          refresh_token?: string | null
+          token_expiry?: string | null
+          root_folder_id?: string | null
+          connected_email?: string | null
+          is_connected?: boolean
+          connected_at?: string | null
+          connected_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      workspace_drive_folders: {
+        Row: {
+          id: string
+          workspace_id: string
+          drive_folder_id: string
+          drive_folder_url: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          workspace_id: string
+          drive_folder_id: string
+          drive_folder_url?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          workspace_id?: string
+          drive_folder_id?: string
+          drive_folder_url?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_drive_folders_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      file_attachments: {
+        Row: {
+          id: string
+          file_name: string
+          file_type: string | null
+          file_size: number | null
+          drive_file_id: string
+          drive_file_url: string
+          drive_thumbnail_url: string | null
+          workspace_id: string | null
+          task_id: string | null
+          comment_id: string | null
+          uploaded_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          file_name: string
+          file_type?: string | null
+          file_size?: number | null
+          drive_file_id: string
+          drive_file_url: string
+          drive_thumbnail_url?: string | null
+          workspace_id?: string | null
+          task_id?: string | null
+          comment_id?: string | null
+          uploaded_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          file_name?: string
+          file_type?: string | null
+          file_size?: number | null
+          drive_file_id?: string
+          drive_file_url?: string
+          drive_thumbnail_url?: string | null
+          workspace_id?: string | null
+          task_id?: string | null
+          comment_id?: string | null
+          uploaded_by?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "file_attachments_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_attachments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_attachments_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "task_comments"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {
