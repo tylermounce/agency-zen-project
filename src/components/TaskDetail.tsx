@@ -6,10 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Calendar, User, Flag, CheckSquare, FileText, Save, X, Trash2 } from 'lucide-react';
+import { Calendar, User, Flag, CheckSquare, FileText, Save, X, Trash2, Paperclip } from 'lucide-react';
 import { Task } from '@/types';
 import { useUnifiedData } from '@/hooks/useUnifiedData';
 import { TaskComments } from '@/components/TaskComments';
+import { FileAttachments } from '@/components/FileAttachments';
 
 interface TaskDetailProps {
   task: Task | null;
@@ -189,6 +190,18 @@ onOpenChange(false);
               value={editedTask.description || ''}
               onChange={(e) => setEditedTask({...editedTask, description: e.target.value})}
               rows={3}
+            />
+          </div>
+
+          {/* File Attachments */}
+          <div className="space-y-2">
+            <Label className="flex items-center space-x-1">
+              <Paperclip className="w-4 h-4" />
+              <span>Attachments</span>
+            </Label>
+            <FileAttachments
+              taskId={task.id}
+              workspaceId={task.workspace_id}
             />
           </div>
 
