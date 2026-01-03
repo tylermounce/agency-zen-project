@@ -50,11 +50,13 @@ const Index = () => {
   // Get task counts using unified data
   const taskCounts = getWorkspaceTaskCounts;
   
-  // Map workspaces with updated task counts
-  const workspacesWithCounts = workspaces.map(workspace => ({
-    ...workspace,
-    tasks: taskCounts[workspace.id]?.active || 0
-  }));
+  // Map workspaces with updated task counts (filter out archived workspaces)
+  const workspacesWithCounts = workspaces
+    .filter(workspace => !(workspace as any).is_archived)
+    .map(workspace => ({
+      ...workspace,
+      tasks: taskCounts[workspace.id]?.active || 0
+    }));
 
   // Auto-select first workspace if none selected and workspaces are available
   useEffect(() => {

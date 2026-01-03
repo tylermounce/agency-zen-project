@@ -6,11 +6,11 @@ import { useSupabaseData } from './useSupabaseData';
 
 export const useUnifiedData = () => {
   const { users, loading: usersLoading, error: usersError } = useUsers();
-  const { 
-    workspaces, 
-    projects, 
-    tasks, 
-    loading: dataLoading, 
+  const {
+    workspaces,
+    projects,
+    tasks,
+    loading: dataLoading,
     error: dataError,
     createWorkspace,
     createProject,
@@ -20,6 +20,7 @@ export const useUnifiedData = () => {
     updateProject,
     updateWorkspace,
     deleteWorkspace,
+    archiveWorkspace,
     refetch
   } = useSupabaseData();
 
@@ -138,6 +139,7 @@ export const useUnifiedData = () => {
     updateProject,
     updateWorkspace,
     deleteWorkspace,
+    archiveWorkspace,
     refetch,
     
     // Mapping helpers
