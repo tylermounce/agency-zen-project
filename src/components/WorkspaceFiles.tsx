@@ -15,8 +15,17 @@ import {
   Loader2,
   Grid,
   List,
-  Filter
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useUsers } from '@/hooks/useUsers';
 import { formatters } from '@/lib/timezone';
@@ -48,7 +57,9 @@ export const WorkspaceFiles = ({ workspaceId }: WorkspaceFilesProps) => {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [sortBy, setSortBy] = useState<'name' | 'date' | 'size'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [folderUrl, setFolderUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -137,9 +148,25 @@ export const WorkspaceFiles = ({ workspaceId }: WorkspaceFilesProps) => {
     return user?.full_name || user?.email || 'Unknown';
   };
 
-  const filteredFiles = files.filter(file =>
-    file.file_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredFiles = files
+    .filter(file =>
+      file.file_name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .sort((a, b) => {
+      let comparison = 0;
+      switch (sortBy) {
+        case 'name':
+          comparison = a.file_name.localeCompare(b.file_name);
+          break;
+        case 'date':
+          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          break;
+        case 'size':
+          comparison = (a.file_size || 0) - (b.file_size || 0);
+          break;
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
 
   if (driveLoading || loading) {
     return (
@@ -215,7 +242,7 @@ export const WorkspaceFiles = ({ workspaceId }: WorkspaceFilesProps) => {
         </div>
       </div>
 
-      {/* Search and View Toggle */}
+      {/* Search, Sort, and View Toggle */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -226,6 +253,36 @@ export const WorkspaceFiles = ({ workspaceId }: WorkspaceFilesProps) => {
             className="pl-10"
           />
         </div>
+
+        {/* Sort Options */}
+        <div className="flex items-center gap-2">
+          <Select value={sortBy} onValueChange={(value: 'name' | 'date' | 'size') => setSortBy(value)}>
+            <SelectTrigger className="w-[140px]">
+              <ArrowUpDown className="w-4 h-4 mr-2" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="name">Name</SelectItem>
+              <SelectItem value="date">Date Added</SelectItem>
+              <SelectItem value="size">Size</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+            className="px-2"
+            title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+          >
+            {sortOrder === 'asc' ? (
+              <ArrowUp className="w-4 h-4" />
+            ) : (
+              <ArrowDown className="w-4 h-4" />
+            )}
+          </Button>
+        </div>
+
+        {/* View Toggle */}
         <div className="flex items-center border rounded-md">
           <Button
             variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
