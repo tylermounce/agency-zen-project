@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Plus, Users, MessageSquare, Calendar, CheckSquare, User, Hash, Inbox, LogOut, Settings as SettingsIcon } from 'lucide-react';
+import { Plus, Users, MessageSquare, Calendar, CheckSquare, User, Hash, Inbox, LogOut, Settings as SettingsIcon, FolderOpen } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -20,6 +20,7 @@ import { ProjectTemplates } from '@/components/ProjectTemplates';
 import { MyTasks } from '@/components/MyTasks';
 import { ChannelDiscussion } from '@/components/ChannelDiscussion';
 import { MasterInbox } from '@/components/MasterInbox';
+import { WorkspaceFiles } from '@/components/WorkspaceFiles';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUnifiedData } from '@/hooks/useUnifiedData';
 import { useUsers } from '@/hooks/useUsers';
@@ -388,7 +389,7 @@ const Index = () => {
         {/* Main Content */}
         <div className="px-6 py-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-5' : 'grid-cols-3'} lg:w-120`}>
+            <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-6' : 'grid-cols-4'} lg:w-auto`}>
               <TabsTrigger value="channel" className="flex items-center">
                 <Hash className="w-4 h-4 mr-2" />
                 Channel
@@ -406,6 +407,10 @@ const Index = () => {
               <TabsTrigger value="messages" className="flex items-center">
                 <MessageSquare className="w-4 h-4 mr-2" />
                 Messages
+              </TabsTrigger>
+              <TabsTrigger value="files" className="flex items-center">
+                <FolderOpen className="w-4 h-4 mr-2" />
+                Files
               </TabsTrigger>
               {isAdmin && (
                 <TabsTrigger value="templates" className="flex items-center">
@@ -438,10 +443,14 @@ const Index = () => {
             </TabsContent>
 
             <TabsContent value="messages" className="space-y-6">
-              <MessagingPanel 
+              <MessagingPanel
                 workspaceId={selectedWorkspace}
                 selectedProjectThread={selectedProjectThread}
               />
+            </TabsContent>
+
+            <TabsContent value="files" className="space-y-6">
+              <WorkspaceFiles workspaceId={selectedWorkspace} />
             </TabsContent>
 
             {isAdmin && (
