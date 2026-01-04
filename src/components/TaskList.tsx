@@ -256,12 +256,10 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
                 className="pl-10"
               />
             </div>
-            <div>
-              <label className="text-sm font-medium">Status</label>
-              <Select 
-                value={filterStatus.length === 4 ? "all" : filterStatus.join(",")} 
-                onValueChange={() => {}}
-              >
+            <Select 
+              value={filterStatus.length === 4 ? "all" : filterStatus.join(",")} 
+              onValueChange={() => {}}
+            >
                 <SelectTrigger>
                   <SelectValue>
                     {filterStatus.length === 4 ? "All Status" : 
@@ -295,8 +293,7 @@ export const TaskList = ({ workspaceId, projectFilter, onClearProjectFilter }: T
                     </div>
                   ))}
                 </SelectContent>
-              </Select>
-            </div>
+            </Select>
             <Select value={filterProject} onValueChange={setFilterProject}>
               <SelectTrigger>
                 <SelectValue placeholder="Project" />
