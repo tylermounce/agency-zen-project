@@ -1,6 +1,6 @@
 
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -16,9 +17,74 @@ const Auth = () => {
   const [signUpSuccess, setSignUpSuccess] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [showSetNewPassword, setShowSetNewPassword] = useState(false);
+  const [passwordUpdateSuccess, setPasswordUpdateSuccess] = useState(false);
   const { signIn, signUp, resetPassword } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
+
+  // Check for password reset flow
+  useEffect(() => {
+    const isReset = searchParams.get('reset') === 'true';
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const errorCode = hashParams.get('error_code');
+    const errorDescription = hashParams.get('error_description');
+
+    if (isReset) {
+      if (errorCode) {
+        // There was an error with the reset link
+        setError(errorDescription?.replace(/\+/g, ' ') || 'Password reset link is invalid or expired. Please request a new one.');
+      } else {
+        // Check if we have a valid session from the reset link
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session) {
+            // User clicked valid reset link and has a session
+            setShowSetNewPassword(true);
+          }
+        });
+      }
+    }
+  }, [searchParams]);
+
+  const handleSetNewPassword = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    const formData = new FormData(e.currentTarget);
+    const newPassword = formData.get('newPassword') as string;
+    const confirmPassword = formData.get('confirmPassword') as string;
+
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      setIsLoading(false);
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters');
+      setIsLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+    if (error) {
+      setError(error.message);
+      console.error('Password update error:', error);
+    } else {
+      setPasswordUpdateSuccess(true);
+      toast({
+        title: "Password updated!",
+        description: "Your password has been changed successfully.",
+      });
+      // Sign out and redirect to login
+      await supabase.auth.signOut();
+    }
+
+    setIsLoading(false);
+  };
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -103,7 +169,75 @@ const Auth = () => {
           <p className="text-gray-600 mt-2">Manage your projects and tasks efficiently</p>
         </div>
 
-        {signUpSuccess ? (
+        {passwordUpdateSuccess ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-green-600">Password Updated!</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center space-y-4">
+                <p>Your password has been successfully updated.</p>
+                <p className="text-sm text-gray-600">
+                  You can now sign in with your new password.
+                </p>
+                <Button
+                  onClick={() => {
+                    setPasswordUpdateSuccess(false);
+                    setShowSetNewPassword(false);
+                    // Clear the URL params
+                    window.history.replaceState({}, '', '/auth');
+                  }}
+                  className="w-full"
+                >
+                  Sign In
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : showSetNewPassword ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Set New Password</CardTitle>
+              <CardDescription>
+                Enter your new password below.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSetNewPassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword">New Password</Label>
+                  <Input
+                    id="newPassword"
+                    name="newPassword"
+                    type="password"
+                    placeholder="Enter new password"
+                    minLength={6}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    placeholder="Confirm new password"
+                    minLength={6}
+                    required
+                  />
+                </div>
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? "Updating..." : "Update Password"}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        ) : signUpSuccess ? (
           <Card>
             <CardHeader>
               <CardTitle className="text-green-600">Check Your Email</CardTitle>
