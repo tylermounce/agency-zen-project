@@ -198,29 +198,20 @@ export const UserManagement = () => {
     setDeleting(true);
 
     try {
-      // Delete user roles first
-      await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userToDelete.id);
+      // Call the Edge Function to delete the user (handles auth.users deletion)
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { userIdToDelete: userToDelete.id }
+      });
 
-      // Delete workspace memberships
-      await supabase
-        .from('workspace_members')
-        .delete()
-        .eq('user_id', userToDelete.id);
+      if (error) throw error;
 
-      // Delete the user's profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', userToDelete.id);
-
-      if (profileError) throw profileError;
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to delete user');
+      }
 
       toast({
-        title: "User removed",
-        description: `${userToDelete.full_name || userToDelete.email} has been removed from the account.`,
+        title: "User deleted",
+        description: `${userToDelete.full_name || userToDelete.email} has been completely removed.`,
       });
 
       setDeleteUserDialog(false);
@@ -230,7 +221,7 @@ export const UserManagement = () => {
       console.error('Error deleting user:', error);
       toast({
         title: "Error",
-        description: "Failed to remove user. They may still have associated data.",
+        description: error instanceof Error ? error.message : "Failed to remove user.",
         variant: "destructive",
       });
     } finally {

@@ -14,7 +14,9 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [signUpSuccess, setSignUpSuccess] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
+  const { signIn, signUp, resetPassword } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -69,6 +71,30 @@ const Auth = () => {
     setIsLoading(false);
   };
 
+  const handleForgotPassword = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get('email') as string;
+
+    const { error } = await resetPassword(email);
+
+    if (error) {
+      setError(error.message);
+      console.error('Password reset error:', error);
+    } else {
+      setResetEmailSent(true);
+      toast({
+        title: "Reset email sent",
+        description: "Check your email for a password reset link.",
+      });
+    }
+
+    setIsLoading(false);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
@@ -88,14 +114,80 @@ const Auth = () => {
                 <p className="text-sm text-gray-600">
                   After verification, you can return here to sign in.
                 </p>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => setSignUpSuccess(false)}
                   className="w-full"
                 >
                   Back to Sign In
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        ) : resetEmailSent ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-green-600">Check Your Email</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center space-y-4">
+                <p>We've sent you a password reset link. Please check your email and click the link to reset your password.</p>
+                <p className="text-sm text-gray-600">
+                  The link will expire in 24 hours.
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setResetEmailSent(false);
+                    setShowForgotPassword(false);
+                  }}
+                  className="w-full"
+                >
+                  Back to Sign In
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : showForgotPassword ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Reset Password</CardTitle>
+              <CardDescription>
+                Enter your email address and we'll send you a link to reset your password.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="reset-email">Email</Label>
+                  <Input
+                    id="reset-email"
+                    name="email"
+                    type="email"
+                    placeholder="your@email.com"
+                    required
+                  />
+                </div>
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? "Sending..." : "Send Reset Link"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => {
+                    setShowForgotPassword(false);
+                    setError(null);
+                  }}
+                >
+                  Back to Sign In
+                </Button>
+              </form>
             </CardContent>
           </Card>
         ) : (
@@ -142,6 +234,17 @@ const Auth = () => {
                     )}
                     <Button type="submit" className="w-full" disabled={isLoading}>
                       {isLoading ? "Signing In..." : "Sign In"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="w-full text-sm text-gray-600"
+                      onClick={() => {
+                        setShowForgotPassword(true);
+                        setError(null);
+                      }}
+                    >
+                      Forgot your password?
                     </Button>
                   </form>
                 </CardContent>
