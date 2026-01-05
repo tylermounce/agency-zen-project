@@ -3,8 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar, Flag, CheckSquare, Save, X, Users, FileText } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CheckSquare, Save, X, Users, FileText } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Project } from '@/types';
 import { useUnifiedData } from '@/hooks/useUnifiedData';
@@ -75,37 +74,7 @@ export const ProjectDetailDialog = ({ project, open, onOpenChange, onSave }: Pro
             />
           </div>
 
-          {/* Project and Workspace Row */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Project</Label>
-              <Input
-                value={editedProject.title}
-                disabled
-                className="bg-gray-50"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Workspace</Label>
-              <Select
-                value={editedProject.workspace_id}
-                onValueChange={(value) => setEditedProject({...editedProject, workspace_id: value})}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {workspaces.map((workspace) => (
-                    <SelectItem key={workspace.id} value={workspace.id}>
-                      {workspace.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Members and Due Date Row */}
+          {/* Members and Progress Row */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="flex items-center space-x-1">
@@ -128,40 +97,6 @@ export const ProjectDetailDialog = ({ project, open, onOpenChange, onSave }: Pro
                   </div>
                 ))}
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="flex items-center space-x-1">
-                <Calendar className="w-4 h-4" />
-                <span>Due Date</span>
-              </Label>
-              <Input
-                type="date"
-                value={editedProject.due_date || ''}
-                onChange={(e) => setEditedProject({...editedProject, due_date: e.target.value})}
-              />
-            </div>
-          </div>
-
-          {/* Priority and Progress Row */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="flex items-center space-x-1">
-                <Flag className="w-4 h-4" />
-                <span>Priority</span>
-              </Label>
-              <Select
-                value={editedProject.priority || 'medium'}
-                onValueChange={(value: 'low' | 'medium' | 'high') => setEditedProject({...editedProject, priority: value})}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <div className="space-y-2">
               <Label>Progress</Label>

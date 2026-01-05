@@ -3,10 +3,9 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Calendar, User, Flag, CheckSquare, FileText, Save, X, Trash2, Paperclip } from 'lucide-react';
+import { Calendar, User, Flag, CheckSquare, Save, X, Trash2, Paperclip } from 'lucide-react';
 import { Task } from '@/types';
 import { useUnifiedData } from '@/hooks/useUnifiedData';
 import { TaskComments } from '@/components/TaskComments';
@@ -41,7 +40,6 @@ export const TaskDetail = ({ task, open, onOpenChange, onSave, onDelete }: TaskD
     // Only send the fields that might have changed, excluding fields that shouldn't be updated
     const updates: Partial<Task> = {
       title: editedTask.title,
-      description: editedTask.description,
       assignee_id: editedTask.assignee_id,
       due_date: editedTask.due_date,
       priority: editedTask.priority,
@@ -177,20 +175,6 @@ onOpenChange(false);
                 </SelectContent>
               </Select>
             </div>
-          </div>
-
-          {/* Description */}
-          <div className="space-y-2">
-            <Label className="flex items-center space-x-1">
-              <FileText className="w-4 h-4" />
-              <span>Description</span>
-            </Label>
-            <Textarea
-              placeholder="Add a description for this task..."
-              value={editedTask.description || ''}
-              onChange={(e) => setEditedTask({...editedTask, description: e.target.value})}
-              rows={3}
-            />
           </div>
 
           {/* File Attachments */}

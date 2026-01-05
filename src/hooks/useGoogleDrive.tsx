@@ -24,6 +24,31 @@ interface FileAttachment {
   created_at: string;
 }
 
+interface DriveFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  isFolder: boolean;
+  size: number | null;
+  createdTime: string;
+  modifiedTime: string;
+  webViewLink: string;
+  thumbnailLink: string | null;
+  iconLink: string | null;
+}
+
+interface FolderInfo {
+  id: string;
+  name: string;
+  parentId: string | null;
+}
+
+interface ListFolderResult {
+  files: DriveFile[];
+  currentFolder: FolderInfo;
+  rootFolderId: string;
+}
+
 export const useGoogleDrive = () => {
   const { toast } = useToast();
   const [isConnected, setIsConnected] = useState(false);
@@ -139,6 +164,50 @@ export const useGoogleDrive = () => {
     }
   }, []);
 
+  // List files in a Drive folder
+  const listFolder = useCallback(async (options: {
+    folderId?: string;
+    workspaceId?: string;
+  }): Promise<ListFolderResult | null> => {
+    if (!isConnected) {
+      toast({
+        title: "Google Drive not connected",
+        description: "Please connect Google Drive in Settings first.",
+        variant: "destructive"
+      });
+      return null;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('google-drive-list', {
+        body: {
+          folderId: options.folderId,
+          workspaceId: options.workspaceId
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        return {
+          files: data.files,
+          currentFolder: data.currentFolder,
+          rootFolderId: data.rootFolderId
+        };
+      } else {
+        throw new Error(data.error || 'Failed to list folder');
+      }
+    } catch (error) {
+      console.error('List folder error:', error);
+      toast({
+        title: "Failed to load folder",
+        description: error instanceof Error ? error.message : "Failed to list folder contents",
+        variant: "destructive"
+      });
+      return null;
+    }
+  }, [isConnected, toast]);
+
   // Delete file attachment (doesn't delete from Drive, just removes reference)
   const deleteFile = useCallback(async (fileId: string): Promise<boolean> => {
     try {
@@ -171,6 +240,7 @@ export const useGoogleDrive = () => {
     settings,
     uploadFile,
     getFiles,
+    listFolder,
     deleteFile
   };
 };
