@@ -1,10 +1,9 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Calendar, MessageSquare, MoreHorizontal } from 'lucide-react';
+import { Calendar, MessageSquare, MoreHorizontal, Trash2, ListTodo } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ProjectDetailDialog } from '@/components/ProjectDetailDialog';
 import { useProjectMembers } from '@/hooks/useProjectMembers';
@@ -24,13 +23,14 @@ export const ProjectBoard = ({ workspaceId, onProjectClick, onProjectMessageClic
   const [selectedProject, setSelectedProject] = useState(null);
   const [isProjectDetailOpen, setIsProjectDetailOpen] = useState(false);
   const { user } = useAuth();
-  const { 
-    getWorkspaceProjects, 
-    getProjectTasks, 
-    users, 
-    projects, 
+  const {
+    getWorkspaceProjects,
+    getProjectTasks,
+    users,
+    projects,
     updateProject,
-    loading 
+    deleteProject,
+    loading
   } = useUnifiedData();
   
   const workspaceProjects = getWorkspaceProjects(workspaceId);
@@ -50,21 +50,14 @@ export const ProjectBoard = ({ workspaceId, onProjectClick, onProjectMessageClic
     });
 
     return (
-      <Card 
-        key={project.id} 
+      <Card
+        key={project.id}
         className="hover:shadow-md transition-shadow cursor-pointer"
-        onClick={() => handleProjectClick(project)}
+        onClick={() => handleCardClick(project)}
       >
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
-            <div className="space-y-2">
-              <CardTitle className="text-lg">{project.title}</CardTitle>
-              <div className="flex items-center space-x-2">
-                <Badge variant="outline" className={getPriorityColor(project.priority)}>
-                  {formatPriority(project.priority)}
-                </Badge>
-              </div>
-            </div>
+            <CardTitle className="text-lg">{project.title}</CardTitle>
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                 <Button variant="ghost" size="sm">
@@ -72,10 +65,13 @@ export const ProjectBoard = ({ workspaceId, onProjectClick, onProjectMessageClic
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={(e) => handleEditProject(e, project)}>
-                  Edit Project
+                <DropdownMenuItem
+                  className="text-red-600 focus:text-red-600"
+                  onClick={(e) => handleDeleteProject(e, project)}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Project
                 </DropdownMenuItem>
-                <DropdownMenuItem>Archive</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -88,22 +84,23 @@ export const ProjectBoard = ({ workspaceId, onProjectClick, onProjectMessageClic
             </div>
             <Progress value={progress} className="h-2" />
           </div>
-          
+
           <div className="flex items-center justify-between text-sm text-gray-600">
             <div className="flex items-center space-x-1">
               <Calendar className="w-4 h-4" />
-              <span>
-                {project.due_date 
-                  ? `Due ${formatters.dateOnly(project.due_date)}`
-                  : `Created ${formatters.dateOnly(project.created_at)}`
-                }
-              </span>
+              <span>Created {formatters.dateOnly(project.created_at)}</span>
             </div>
-            <div className="flex items-center space-x-1">
-              <span>{completedTasks}/{totalTasks} tasks</span>
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-auto p-1 text-sm text-gray-600 hover:text-blue-600"
+              onClick={(e) => handleViewTasks(e, project)}
+            >
+              <ListTodo className="w-4 h-4 mr-1" />
+              {completedTasks}/{totalTasks} tasks
+            </Button>
           </div>
-          
+
           <div className="flex items-center justify-between">
             <div className="flex -space-x-2">
               {teamInitials.map((initials, index) => (
@@ -113,7 +110,7 @@ export const ProjectBoard = ({ workspaceId, onProjectClick, onProjectMessageClic
               ))}
             </div>
             <div className="flex items-center space-x-2">
-              <div 
+              <div
                 className="relative cursor-pointer"
                 onClick={(e) => handleMessageClick(e, project)}
               >
@@ -126,47 +123,36 @@ export const ProjectBoard = ({ workspaceId, onProjectClick, onProjectMessageClic
     );
   };
 
-  // Mock data for current user and unread messages/due tasks (until messaging is implemented)
-  const currentUser = user?.email?.substring(0, 2).toUpperCase() || 'UN';
-  const userUnreadMessages = {}; // Will be populated when messaging is implemented
-  const userDueTasks = {}; // Will be populated based on actual user tasks
 
-  const getPriorityColor = (priority?: string) => {
-    switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800';
-      case 'medium': return 'bg-orange-100 text-orange-800';
-      case 'low': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  // Card click opens edit dialog
+  const handleCardClick = (project) => {
+    setSelectedProject(project);
+    setIsProjectDetailOpen(true);
   };
 
-  const formatPriority = (priority?: string) => {
-    if (!priority) return 'Medium';
-    return priority.charAt(0).toUpperCase() + priority.slice(1);
-  };
-
-  const calculateProgress = (completed: number, total: number) => {
-    return total > 0 ? Math.round((completed / total) * 100) : 0;
-  };
-
-  const handleProjectClick = (project) => {
+  // View tasks button navigates to filtered tasks view
+  const handleViewTasks = (e, project) => {
+    e.stopPropagation();
     if (onProjectClick) {
       onProjectClick(project.id, project.title);
     }
   };
 
-  const handleEditProject = (e, project) => {
-    e.stopPropagation(); // Prevent the card click event
-    setSelectedProject(project);
-    setIsProjectDetailOpen(true);
+  // Delete project with confirmation
+  const handleDeleteProject = async (e, project) => {
+    e.stopPropagation();
+    if (window.confirm(`Are you sure you want to delete "${project.title}"? This will also delete all tasks in this project.`)) {
+      try {
+        await deleteProject(project.id);
+      } catch (error) {
+        console.error('Failed to delete project:', error);
+      }
+    }
   };
 
   const handleSaveProject = (updatedProject) => {
     updateProject(updatedProject.id, {
       title: updatedProject.title,
-      description: updatedProject.description,
-      due_date: updatedProject.due_date,
-      priority: updatedProject.priority,
       notes: updatedProject.notes
     });
   };

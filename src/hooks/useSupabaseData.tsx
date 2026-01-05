@@ -230,6 +230,57 @@ export const useSupabaseData = () => {
     }
   };
 
+  // Delete project (cascade delete tasks)
+  const deleteProject = async (projectId: string) => {
+    try {
+      // 1. Delete all tasks for this project
+      const { error: tasksError } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('project_id', projectId);
+
+      if (tasksError) {
+        console.error('Error deleting project tasks:', tasksError);
+        // Continue anyway - tasks might not exist
+      }
+
+      // 2. Delete project members
+      const { error: membersError } = await supabase
+        .from('project_members')
+        .delete()
+        .eq('project_id', projectId);
+
+      if (membersError) {
+        console.error('Error deleting project members:', membersError);
+        // Continue anyway - members might not exist
+      }
+
+      // 3. Delete the project itself
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', projectId);
+
+      if (error) throw error;
+
+      setProjects(prev => prev.filter(project => project.id !== projectId));
+      setTasks(prev => prev.filter(task => task.project_id !== projectId));
+
+      toast({
+        title: "Project deleted",
+        description: "The project and all its tasks have been removed.",
+      });
+    } catch (err) {
+      console.error('Error deleting project:', err);
+      toast({
+        title: "Failed to delete project",
+        description: err instanceof Error ? err.message : 'An error occurred',
+        variant: "destructive",
+      });
+      throw err;
+    }
+  };
+
   // Update workspace
   const updateWorkspace = async (workspaceId: string, updates: Partial<Workspace>) => {
     try {
@@ -479,6 +530,7 @@ export const useSupabaseData = () => {
     updateTask,
     deleteTask,
     updateProject,
+    deleteProject,
     updateWorkspace,
     deleteWorkspace,
     archiveWorkspace,

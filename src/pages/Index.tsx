@@ -48,6 +48,13 @@ const Index = () => {
   const [newProjectPriority, setNewProjectPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [newProjectMembers, setNewProjectMembers] = useState<string[]>([]);
 
+  // Handle workspace change - navigate to channel tab
+  const handleWorkspaceChange = (workspaceId: string) => {
+    setSelectedWorkspace(workspaceId);
+    setActiveTab('channel');
+    setProjectFilter(''); // Clear any project filter
+  };
+
   // Get task counts using unified data
   const taskCounts = getWorkspaceTaskCounts;
   
@@ -214,7 +221,7 @@ const Index = () => {
       <WorkspacesSidebar
         workspaces={workspacesWithCounts}
         selectedWorkspace={selectedWorkspace}
-        onWorkspaceChange={setSelectedWorkspace}
+        onWorkspaceChange={handleWorkspaceChange}
       />
       <SidebarInset>
         {/* Header */}
