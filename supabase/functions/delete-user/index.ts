@@ -73,44 +73,74 @@ serve(async (req) => {
     }
 
     // Delete related data first (in order of dependencies)
+    // We need to clean up ALL tables that reference this user
 
-    // 1. Delete task comments by this user
+    // 1. Delete channel messages by this user
+    await supabase
+      .from('channel_messages')
+      .delete()
+      .eq('user_id', userIdToDelete)
+
+    // 2. Delete message attachments uploaded by this user
+    await supabase
+      .from('message_attachments')
+      .delete()
+      .eq('uploaded_by', userIdToDelete)
+
+    // 3. Delete task comments by this user
     await supabase
       .from('task_comments')
       .delete()
       .eq('user_id', userIdToDelete)
 
-    // 2. Delete file attachments uploaded by this user
+    // 4. Delete file attachments uploaded by this user
     await supabase
       .from('file_attachments')
       .delete()
       .eq('uploaded_by', userIdToDelete)
 
-    // 3. Delete project memberships
+    // 5. Unassign tasks from this user (don't delete the tasks, just remove assignment)
+    await supabase
+      .from('tasks')
+      .update({ assignee_id: null })
+      .eq('assignee_id', userIdToDelete)
+
+    // 6. Delete project memberships
     await supabase
       .from('project_members')
       .delete()
       .eq('user_id', userIdToDelete)
 
-    // 4. Delete workspace memberships
+    // 7. Delete workspace memberships
     await supabase
       .from('workspace_members')
       .delete()
       .eq('user_id', userIdToDelete)
 
-    // 5. Delete user roles
+    // 8. Delete user roles
     await supabase
       .from('user_roles')
       .delete()
       .eq('user_id', userIdToDelete)
 
-    // 6. Delete profile
+    // 9. Delete Google Drive settings if this user connected them
     await supabase
+      .from('google_drive_settings')
+      .delete()
+      .eq('user_id', userIdToDelete)
+
+    // 10. Delete profile LAST (before auth.users)
+    const { error: profileError } = await supabase
       .from('profiles')
       .delete()
       .eq('id', userIdToDelete)
 
-    // 7. Finally, delete from auth.users (requires service role)
+    if (profileError) {
+      console.error('Error deleting profile:', profileError)
+      // Continue anyway - we still want to try deleting auth user
+    }
+
+    // 11. Finally, delete from auth.users (requires service role)
     const { error: deleteError } = await supabase.auth.admin.deleteUser(userIdToDelete)
 
     if (deleteError) {
