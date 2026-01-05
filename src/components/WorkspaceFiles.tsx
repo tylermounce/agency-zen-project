@@ -17,8 +17,10 @@ import {
   List,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  FolderSearch
 } from 'lucide-react';
+import { DriveFolderBrowser } from '@/components/DriveFolderBrowser';
 import {
   Select,
   SelectContent,
@@ -61,6 +63,7 @@ export const WorkspaceFiles = ({ workspaceId }: WorkspaceFilesProps) => {
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'size'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [folderUrl, setFolderUrl] = useState<string | null>(null);
+  const [browseDriveOpen, setBrowseDriveOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -206,6 +209,14 @@ export const WorkspaceFiles = ({ workspaceId }: WorkspaceFilesProps) => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setBrowseDriveOpen(true)}
+          >
+            <FolderSearch className="w-4 h-4 mr-2" />
+            Browse Drive
+          </Button>
           {folderUrl && (
             <Button
               variant="outline"
@@ -442,6 +453,13 @@ export const WorkspaceFiles = ({ workspaceId }: WorkspaceFilesProps) => {
           {searchQuery && ` matching "${searchQuery}"`}
         </p>
       )}
+
+      {/* Browse Drive Dialog */}
+      <DriveFolderBrowser
+        workspaceId={workspaceId}
+        open={browseDriveOpen}
+        onOpenChange={setBrowseDriveOpen}
+      />
     </div>
   );
 };
