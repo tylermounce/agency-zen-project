@@ -99,11 +99,16 @@ serve(async (req) => {
       .delete()
       .eq('uploaded_by', userIdToDelete)
 
-    // 5. Unassign tasks from this user (don't delete the tasks, just remove assignment)
-    await supabase
+    // 5. Reassign tasks from this user to the requesting admin
+    // (assignee_id is NOT NULL, so we can't set it to null)
+    const { error: taskError } = await supabase
       .from('tasks')
-      .update({ assignee_id: null })
+      .update({ assignee_id: requestingUser.id })
       .eq('assignee_id', userIdToDelete)
+
+    if (taskError) {
+      console.error('Error reassigning tasks:', taskError)
+    }
 
     // 6. Delete project memberships
     await supabase
@@ -129,7 +134,13 @@ serve(async (req) => {
       .delete()
       .eq('user_id', userIdToDelete)
 
-    // 10. Delete profile LAST (before auth.users)
+    // 10. Clear template_tasks default_assignee_id references
+    await supabase
+      .from('template_tasks')
+      .update({ default_assignee_id: null })
+      .eq('default_assignee_id', userIdToDelete)
+
+    // 11. Delete profile LAST (before auth.users)
     const { error: profileError } = await supabase
       .from('profiles')
       .delete()
@@ -140,7 +151,7 @@ serve(async (req) => {
       // Continue anyway - we still want to try deleting auth user
     }
 
-    // 11. Finally, delete from auth.users (requires service role)
+    // 12. Finally, delete from auth.users (requires service role)
     const { error: deleteError } = await supabase.auth.admin.deleteUser(userIdToDelete)
 
     if (deleteError) {
