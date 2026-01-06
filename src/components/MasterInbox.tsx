@@ -13,6 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Search, Inbox, MessageSquare, Hash, User, ArrowLeft, Plus, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatters } from '@/lib/timezone';
+import { useNavigate } from 'react-router-dom';
 
 import { useNotifications } from '@/hooks/useNotifications';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -29,12 +30,13 @@ interface MasterInboxProps {
 
 export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { users, loading: usersLoading } = useUsers();
   const { conversations, messages, sendMessage, createConversation, fetchMessages, loadMoreMessages, threadPagination } = useMessaging();
-  
+
   const { notifications, unreadCount, hasUnreadInThread, markThreadAsRead, getUnreadCountForThread } = useNotifications();
   const { workspaces, projects } = useUnifiedData();
-  
+
   const [selectedThread, setSelectedThread] = useState('');
   const [newMessage, setNewMessage] = useState('');
   const [showNewMessageDialog, setShowNewMessageDialog] = useState(false);
@@ -44,9 +46,18 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
   const [selectedWorkspace, setSelectedWorkspace] = useState('');
   const [newMessageContent, setNewMessageContent] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<any[]>([]);
+  const [filterType, setFilterType] = useState<'all' | 'dm' | 'channel' | 'project'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const workspaceNames = workspaces.map(w => w.name);
   const projectTitles = projects.map(p => p.title);
+
+  // Map workspace ID to workspace name
+  const getWorkspaceName = (workspaceId: string | null) => {
+    if (!workspaceId) return null;
+    const workspace = workspaces.find(w => w.id === workspaceId);
+    return workspace?.name || workspaceId;
+  };
 
   const getThreadIcon = (type: string) => {
     switch (type) {
@@ -55,6 +66,36 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
       case 'channel': return <Hash className="w-4 h-4" />;
       default: return <MessageSquare className="w-4 h-4" />;
     }
+  };
+
+  const getTypeBadge = (type: string) => {
+    switch (type) {
+      case 'dm':
+        return <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-100">DM</Badge>;
+      case 'channel':
+        return <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Channel</Badge>;
+      case 'project':
+        return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">Project</Badge>;
+      default:
+        return <Badge variant="outline">{type}</Badge>;
+    }
+  };
+
+  // Filter conversations based on type and search
+  const filteredConversations = conversations.filter(conv => {
+    const matchesType = filterType === 'all' || conv.thread_type === filterType;
+    const matchesSearch = !searchQuery ||
+      conv.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (conv.workspace_id && getWorkspaceName(conv.workspace_id)?.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchesType && matchesSearch;
+  });
+
+  // Count conversations by type
+  const typeCounts = {
+    all: conversations.length,
+    dm: conversations.filter(c => c.thread_type === 'dm').length,
+    channel: conversations.filter(c => c.thread_type === 'channel').length,
+    project: conversations.filter(c => c.thread_type === 'project').length,
   };
 
   const getUserById = (userId: string) => {
@@ -179,16 +220,59 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
 
       <div className="flex h-[calc(100vh-80px)]">
         {/* Conversations List */}
-        <div className="w-80 bg-white border-r border-gray-200">
-          <div className="p-4 border-b border-gray-100">
+        <div className="w-96 bg-white border-r border-gray-200 flex flex-col">
+          <div className="p-4 border-b border-gray-100 space-y-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input placeholder="Search conversations..." className="pl-10" />
+              <Input
+                placeholder="Search conversations..."
+                className="pl-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            {/* Filter Tabs */}
+            <div className="flex gap-1">
+              <Button
+                variant={filterType === 'all' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setFilterType('all')}
+                className="text-xs"
+              >
+                All ({typeCounts.all})
+              </Button>
+              <Button
+                variant={filterType === 'dm' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setFilterType('dm')}
+                className="text-xs"
+              >
+                <User className="w-3 h-3 mr-1" />
+                DMs ({typeCounts.dm})
+              </Button>
+              <Button
+                variant={filterType === 'channel' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setFilterType('channel')}
+                className="text-xs"
+              >
+                <Hash className="w-3 h-3 mr-1" />
+                Channels ({typeCounts.channel})
+              </Button>
+              <Button
+                variant={filterType === 'project' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setFilterType('project')}
+                className="text-xs"
+              >
+                <MessageSquare className="w-3 h-3 mr-1" />
+                Projects ({typeCounts.project})
+              </Button>
             </div>
           </div>
-          <ScrollArea className="h-full">
+          <ScrollArea className="flex-1">
             <div className="space-y-1 p-2">
-              {conversations.map((conversation) => (
+              {filteredConversations.map((conversation) => (
                 <div
                   key={conversation.id}
                   onClick={() => {
@@ -205,23 +289,26 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
                   }`}
                 >
                   <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <div className="relative">
+                    <div className="flex items-center space-x-2 flex-1 min-w-0">
+                      <div className="relative flex-shrink-0">
                         {getThreadIcon(conversation.thread_type)}
                         {hasUnreadInThread(conversation.thread_id) && (
                           <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white"></div>
                         )}
                       </div>
-                      <h4 className="font-medium text-sm truncate">{conversation.title}</h4>
+                      <h4 className="font-medium text-sm truncate flex-1">{conversation.title}</h4>
                       {getUnreadCountForThread(conversation.thread_id) > 0 && (
-                        <Badge variant="destructive" className="text-xs px-1 py-0 min-w-[16px] h-4">
+                        <Badge variant="destructive" className="text-xs px-1 py-0 min-w-[16px] h-4 flex-shrink-0">
                           {getUnreadCountForThread(conversation.thread_id)}
                         </Badge>
                       )}
                     </div>
+                    <div className="flex-shrink-0 ml-2">
+                      {getTypeBadge(conversation.thread_type)}
+                    </div>
                   </div>
                   {conversation.workspace_id && (
-                    <p className="text-xs text-gray-500 mb-1">{conversation.workspace_id}</p>
+                    <p className="text-xs text-gray-500 mb-1 truncate">{getWorkspaceName(conversation.workspace_id)}</p>
                   )}
                   <div className="flex items-center justify-between">
                     <div className="flex -space-x-1">
@@ -250,10 +337,19 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
                   </div>
                 </div>
               ))}
-              {conversations.length === 0 && (
+              {filteredConversations.length === 0 && (
                 <div className="p-4 text-center text-gray-500">
-                  <p>No conversations yet</p>
-                  <p className="text-sm">Start a new message to begin</p>
+                  {searchQuery || filterType !== 'all' ? (
+                    <>
+                      <p>No conversations match your filter</p>
+                      <p className="text-sm">Try adjusting your search or filter</p>
+                    </>
+                  ) : (
+                    <>
+                      <p>No conversations yet</p>
+                      <p className="text-sm">Start a new message to begin</p>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -270,7 +366,7 @@ export const MasterInbox = ({ userId, onBack }: MasterInboxProps) => {
                   <h3 className="font-semibold">{currentConversation.title}</h3>
                   {currentConversation.workspace_id && (
                     <Badge variant="outline" className="text-xs">
-                      {currentConversation.workspace_id}
+                      {getWorkspaceName(currentConversation.workspace_id)}
                     </Badge>
                   )}
                 </div>

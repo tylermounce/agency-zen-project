@@ -35,7 +35,7 @@ export const useTaskComments = (taskId: string | null) => {
         .from('task_comments' as any)
         .select('*')
         .eq('task_id', taskId)
-        .order('created_at', { ascending: true }) as any);
+        .order('created_at', { ascending: false }) as any);
 
       if (fetchError) throw fetchError;
 
@@ -107,7 +107,7 @@ export const useTaskComments = (taskId: string | null) => {
         user_initials: (user.email?.[0] || 'U').toUpperCase()
       };
 
-      setComments(prev => [...prev, newComment]);
+      setComments(prev => [newComment, ...prev]);
       return true;
     } catch (err) {
       console.error('Error adding comment:', err);
@@ -217,7 +217,7 @@ export const useTaskComments = (taskId: string | null) => {
 
             setComments(prev => {
               if (prev.some(c => c.id === newComment.id)) return prev;
-              return [...prev, commentWithUser];
+              return [commentWithUser, ...prev];
             });
           } else if (payload.eventType === 'UPDATE') {
             const updated = payload.new as TaskComment;

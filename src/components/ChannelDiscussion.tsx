@@ -26,6 +26,7 @@ interface Message {
   sender_id: string;
   created_at: string;
   thread_id: string;
+  parent_message_id?: string | null;
 }
 
 interface Profile {
@@ -63,6 +64,8 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [messageAttachments, setMessageAttachments] = useState<{ [key: string]: MessageAttachment[] }>({});
+  const [messageReplies, setMessageReplies] = useState<{ [key: string]: Message[] }>({});
+  const [submittingReply, setSubmittingReply] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const threadId = `workspace-${workspaceId}-general`;
@@ -99,6 +102,36 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
     };
 
     fetchAttachments();
+  }, [messages]);
+
+  // Fetch replies for messages
+  useEffect(() => {
+    const fetchReplies = async () => {
+      if (messages.length === 0) return;
+
+      const messageIds = messages.map(m => m.id);
+      const { data } = await supabase
+        .from('messages')
+        .select('*')
+        .in('parent_message_id', messageIds)
+        .order('created_at', { ascending: true });
+
+      if (data) {
+        const repliesMap: { [key: string]: Message[] } = {};
+        data.forEach(reply => {
+          const parentId = reply.parent_message_id;
+          if (parentId) {
+            if (!repliesMap[parentId]) {
+              repliesMap[parentId] = [];
+            }
+            repliesMap[parentId].push(reply);
+          }
+        });
+        setMessageReplies(repliesMap);
+      }
+    };
+
+    fetchReplies();
   }, [messages]);
 
   const fetchMessages = () => {
@@ -270,11 +303,41 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
     }
   };
 
-  const handleReply = (postId: string) => {
-    // For now, just log - reply functionality can be enhanced later
-    if (replyText.trim()) {
+  const handleReply = async (postId: string) => {
+    if (!replyText.trim() || !user || submittingReply) return;
+
+    setSubmittingReply(true);
+    try {
+      // Insert the reply with parent_message_id
+      const { data: replyData, error } = await supabase
+        .from('messages')
+        .insert({
+          sender_id: user.id,
+          content: replyText.trim(),
+          thread_type: 'channel',
+          thread_id: threadId,
+          workspace_id: workspaceId,
+          parent_message_id: postId
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Add to local state
+      if (replyData) {
+        setMessageReplies(prev => ({
+          ...prev,
+          [postId]: [...(prev[postId] || []), replyData]
+        }));
+      }
+
       setReplyText('');
       setReplyTargetId(null);
+    } catch (error) {
+      console.error('Error posting reply:', error);
+    } finally {
+      setSubmittingReply(false);
     }
   };
 
@@ -317,14 +380,17 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
     }
   };
 
-  // Filter messages based on search term
+  // Filter messages based on search term, exclude replies, and reverse for newest-first display
   const filteredMessages = messages.filter(message => {
+    // Only show top-level messages (not replies)
+    if (message.parent_message_id) return false;
+
     const contentMatch = message.content.toLowerCase().includes(searchTerm.toLowerCase());
     const profile = profiles[message.sender_id];
     const authorMatch = profile?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                        profile?.email?.toLowerCase().includes(searchTerm.toLowerCase());
     return contentMatch || authorMatch;
-  });
+  }).slice().reverse(); // Reverse to show newest first
 
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -481,29 +547,8 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
         </CardContent>
       </Card>
 
-      {/* Messages Feed */}
+      {/* Messages Feed - Newest First */}
       <div className="space-y-4">
-        {/* Load More Button */}
-        {pagination?.hasMore && !searchTerm && filteredMessages.length > 0 && (
-          <div className="text-center">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => loadMoreMessages(threadId)}
-              disabled={pagination?.loading}
-            >
-              {pagination?.loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Loading...
-                </>
-              ) : (
-                'Load older messages'
-              )}
-            </Button>
-          </div>
-        )}
-
         {filteredMessages.length === 0 && !searchTerm ? (
           <div className="text-center py-8 text-gray-500">
             <p>No messages yet. Start the conversation!</p>
@@ -592,14 +637,34 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
                         className="text-gray-500 hover:text-gray-700"
                       >
                         <Reply className="w-4 h-4 mr-1" />
-                        Reply
+                        Reply {messageReplies[message.id]?.length ? `(${messageReplies[message.id].length})` : ''}
                       </Button>
                     </div>
                   </div>
 
+                  {/* Existing Replies */}
+                  {messageReplies[message.id]?.length > 0 && (
+                    <div className="ml-12 mt-3 space-y-3 border-l-2 border-gray-200 pl-4">
+                      {messageReplies[message.id].map((reply) => (
+                        <div key={reply.id} className="flex space-x-3">
+                          <Avatar className="w-8 h-8">
+                            <AvatarFallback className="text-xs">{getAuthorInitials(reply.sender_id)}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <span className="font-medium text-sm">{getAuthorName(reply.sender_id)}</span>
+                              <span className="text-xs text-gray-500">{formatters.timeOnly(reply.created_at)}</span>
+                            </div>
+                            <MentionHighlight content={reply.content} className="text-sm text-gray-700" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Reply Input */}
                   {replyTargetId === message.id && (
-                    <div className="ml-13 space-y-3">
+                    <div className="ml-12 mt-3 border-l-2 border-blue-200 pl-4">
                       <div className="flex space-x-3">
                         <Avatar className="w-8 h-8">
                           <AvatarFallback className="text-xs">{user ? getAuthorInitials(user.id) : 'U'}</AvatarFallback>
@@ -613,8 +678,19 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
                              workspaceId={workspaceId}
                            />
                           <div className="flex space-x-2">
-                            <Button size="sm" onClick={() => handleReply(message.id)} disabled={!replyText.trim()}>
-                              Reply
+                            <Button
+                              size="sm"
+                              onClick={() => handleReply(message.id)}
+                              disabled={!replyText.trim() || submittingReply}
+                            >
+                              {submittingReply ? (
+                                <>
+                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                  Posting...
+                                </>
+                              ) : (
+                                'Reply'
+                              )}
                             </Button>
                             <Button size="sm" variant="ghost" onClick={() => setReplyTargetId(null)}>
                               Cancel
@@ -628,6 +704,27 @@ export const ChannelDiscussion = ({ workspaceId }: ChannelDiscussionProps) => {
               </CardContent>
             </Card>
           ))
+        )}
+
+        {/* Load Older Messages Button - at bottom since newest is first */}
+        {pagination?.hasMore && !searchTerm && filteredMessages.length > 0 && (
+          <div className="text-center pt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => loadMoreMessages(threadId)}
+              disabled={pagination?.loading}
+            >
+              {pagination?.loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                'Load older messages'
+              )}
+            </Button>
+          </div>
         )}
       </div>
 
